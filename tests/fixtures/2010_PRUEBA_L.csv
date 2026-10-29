@@ -1,0 +1,53 @@
+﻿"id";"examen";"parte";"tema";"epigrafe";"n_opciones";"pregunta";"A";"B";"C";"D";"respuesta_oficial";"estado";"respuesta_actual";"fuente";"nota"
+"2010_PRUEBA_L_001";"2010_PRUEBA_L";"comun";"C2";"Epígrafe de prueba C2";"3";"[PRUEBA 3 opciones] Pregunta inventada 1 del tema C2.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"VIGENTE";"";"";""
+"2010_PRUEBA_L_002";"2010_PRUEBA_L";"comun";"C3";"Epígrafe de prueba C3";"3";"[PRUEBA 3 opciones] Pregunta inventada 2 del tema C3.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_003";"2010_PRUEBA_L";"comun";"C4";"Epígrafe de prueba C4";"3";"[PRUEBA 3 opciones] Pregunta inventada 3 del tema C4.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_004";"2010_PRUEBA_L";"especifica";"T1";"Epígrafe de prueba T1";"3";"[PRUEBA 3 opciones] Pregunta inventada 4 del tema T1.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"DUDOSA";"";"";"Nota de prueba de una dudosa."
+"2010_PRUEBA_L_005";"2010_PRUEBA_L";"especifica";"T2";"Epígrafe de prueba T2";"3";"[PRUEBA 3 opciones] Pregunta inventada 5 del tema T2.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_006";"2010_PRUEBA_L";"especifica";"T3";"Epígrafe de prueba T3";"3";"[PRUEBA 3 opciones] Pregunta inventada 6 del tema T3.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_007";"2010_PRUEBA_L";"especifica";"T9";"Epígrafe de prueba T9";"3";"[PRUEBA 3 opciones] Pregunta inventada 7 del tema T9.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"VIGENTE";"";"";""
+"2010_PRUEBA_L_008";"2010_PRUEBA_L";"comun";"C1";"Epígrafe de prueba C1";"3";"[PRUEBA 3 opciones] Pregunta inventada 8 del tema C1.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_009";"2010_PRUEBA_L";"comun";"C2";"Epígrafe de prueba C2";"3";"[PRUEBA 3 opciones] Pregunta inventada 9 del tema C2.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_010";"2010_PRUEBA_L";"comun";"C3";"Epígrafe de prueba C3";"3";"[PRUEBA 3 opciones] Pregunta inventada 10 del tema C3.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"VIGENTE";"";"";""
+"2010_PRUEBA_L_011";"2010_PRUEBA_L";"comun";"C4";"Epígrafe de prueba C4";"3";"[PRUEBA 3 opciones] Pregunta inventada 11 del tema C4.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_012";"2010_PRUEBA_L";"especifica";"T1";"Epígrafe de prueba T1";"3";"[PRUEBA 3 opciones] Pregunta inventada 12 del tema T1.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_013";"2010_PRUEBA_L";"especifica";"T2";"Epígrafe de prueba T2";"3";"[PRUEBA 3 opciones] Pregunta inventada 13 del tema T2.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"VIGENTE";"";"";""
+"2010_PRUEBA_L_014";"2010_PRUEBA_L";"especifica";"T3";"Epígrafe de prueba T3";"3";"[PRUEBA 3 opciones] Pregunta inventada 14 del tema T3.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_015";"2010_PRUEBA_L";"especifica";"T9";"Epígrafe de prueba T9";"3";"[PRUEBA 3 opciones] Pregunta inventada 15 del tema T9.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_016";"2010_PRUEBA_L";"comun";"C1";"Epígrafe de prueba C1";"3";"[PRUEBA 3 opciones] Pregunta inventada 16 del tema C1.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"VIGENTE";"";"";""
+"2010_PRUEBA_L_017";"2010_PRUEBA_L";"comun";"C2";"Epígrafe de prueba C2";"3";"[PRUEBA 3 opciones] Pregunta inventada 17 del tema C2.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_018";"2010_PRUEBA_L";"comun";"C3";"Epígrafe de prueba C3";"3";"[PRUEBA 3 opciones] Pregunta inventada 18 del tema C3.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_019";"2010_PRUEBA_L";"comun";"C4";"Epígrafe de prueba C4";"3";"[PRUEBA 3 opciones] Pregunta inventada 19 del tema C4.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"VIGENTE";"";"";""
+"2010_PRUEBA_L_020";"2010_PRUEBA_L";"especifica";"T1";"Epígrafe de prueba T1";"3";"[PRUEBA 3 opciones] Pregunta inventada 20 del tema T1.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_021";"2010_PRUEBA_L";"especifica";"T2";"Epígrafe de prueba T2";"3";"[PRUEBA 3 opciones] Pregunta inventada 21 del tema T2.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_022";"2010_PRUEBA_L";"especifica";"T3";"Epígrafe de prueba T3";"3";"[PRUEBA 3 opciones] Pregunta inventada 22 del tema T3.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"B";"VIGENTE";"";"";""
+"2010_PRUEBA_L_023";"2010_PRUEBA_L";"especifica";"T9";"Epígrafe de prueba T9";"3";"[PRUEBA 3 opciones] Pregunta inventada 23 del tema T9.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"C";"VIGENTE";"";"";""
+"2010_PRUEBA_L_024";"2010_PRUEBA_L";"comun";"C1";"Epígrafe de prueba C1";"3";"[PRUEBA 3 opciones] Pregunta inventada 24 del tema C1.
+Con un salto de línea; y punto y coma.";"Opción A";"Opción B";"Opción ""C"" con comillas";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_101";"2010_PRUEBA_L";"comun";"C1";"x";"3";"Fila sin respuesta oficial";"a";"b";"c";"";"";"VIGENTE";"";"";""
+"2010_PRUEBA_L_102";"2010_PRUEBA_L";"especifica";"T1";"x";"3";"Fila con una opción vacía";"a";"";"c";"";"A";"VIGENTE";"";"";""
+"2010_PRUEBA_L_001";"2010_PRUEBA_L";"comun";"C1";"x";"3";"Fila con id repetido en el mismo archivo";"a";"b";"c";"";"A";"VIGENTE";"";"";""
+"2025_DEFENSA_L_001";"2010_PRUEBA_L";"comun";"C1";"x";"3";"Id que ya existe en otro banco";"a";"b";"c";"";"A";"VIGENTE";"";"";""

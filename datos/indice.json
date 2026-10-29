@@ -1,0 +1,63 @@
+{
+ "version": 1,
+ "kdf": {
+  "nombre": "PBKDF2-SHA256",
+  "iteraciones": 600000,
+  "sal": "ID+hLfWVPZf+3mLfAj+dhw=="
+ },
+ "verificador": "XbnM6SKbj9BoezcralfQanX527S69PLQqQhTcGRwpqpCGOWTfHXSfxTiOkk=",
+ "archivos": [
+  {
+   "nombre": "2022_TRANSPORTES_L.csv",
+   "huella": "9e6b15d3b3d233ab"
+  },
+  {
+   "nombre": "2023_DEFENSA_L.csv",
+   "huella": "2c467eead119287f"
+  },
+  {
+   "nombre": "2024_MPT_L_supuestos.md",
+   "huella": "7dd49643d67c471f"
+  },
+  {
+   "nombre": "2024_MPT_L.csv",
+   "huella": "5a6b610baab956f9"
+  },
+  {
+   "nombre": "2024_MPT_PI_supuestos.md",
+   "huella": "cfdd75c02421e321"
+  },
+  {
+   "nombre": "2024_MPT_PI.csv",
+   "huella": "663d1f2a293dba5f"
+  },
+  {
+   "nombre": "2024_TRANSPORTES_L.csv",
+   "huella": "176807ccd6089c4d"
+  },
+  {
+   "nombre": "2025_DEFENSA_L_supuestos.md",
+   "huella": "a98eeabb7b61540b"
+  },
+  {
+   "nombre": "2025_DEFENSA_L.csv",
+   "huella": "93d6cab8c3f393d5"
+  },
+  {
+   "nombre": "2025_MITECO_L_supuestos.md",
+   "huella": "7f35eb3fd390cce3"
+  },
+  {
+   "nombre": "2025_MITECO_L.csv",
+   "huella": "1f7fcde883f6c6ce"
+  },
+  {
+   "nombre": "2025_TRANSPORTES_L_supuestos.md",
+   "huella": "9e1bf6ff43af5ca6"
+  },
+  {
+   "nombre": "2025_TRANSPORTES_L.csv",
+   "huella": "537e62bcb0e330e7"
+  }
+ ]
+}

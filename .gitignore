@@ -1,0 +1,13 @@
+# Solo se publica la app y los bancos CIFRADOS (/datos). Los bancos originales (/bancos),
+# los PDF, las revisiones, los scripts de generación, los bocetos y las skills se quedan aquí.
+/*
+!/.gitignore
+!/.gitattributes
+!/.nojekyll
+!/index.html
+!/sw.js
+!/manifest.webmanifest
+!/icons/
+!/datos/
+!/tools/
+!/tests/

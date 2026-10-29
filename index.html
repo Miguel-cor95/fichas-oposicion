@@ -1,0 +1,2200 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#eeebe5">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#121211">
+<title>Fichas · Tests de oposición</title>
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fichas">
+<script>
+/* Aplica el tema elegido antes de pintar nada, para que no parpadee */
+try { var t = (JSON.parse(localStorage.getItem('fichas.ui.v1')) || {}).tema; if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch (e) {}
+/* Solo en la versión publicada: el manifiesto (para instalarla; con doble clic el navegador lo bloquearía)
+   y, si este dispositivo aún no tiene la contraseña, la app queda tapada hasta escribirla */
+if (/^https?:$/.test(location.protocol)) {
+  document.write('<link rel="manifest" href="manifest.webmanifest">');
+  try { if (!localStorage.getItem('fichas.clave.v1')) document.documentElement.classList.add('bloqueada'); } catch (e) { document.documentElement.classList.add('bloqueada'); }
+}
+</script>
+<style>
+/* ==========================================================================
+   FICHAS · app local para practicar tests de oposición
+   Un único archivo, sin dependencias. Funciona con doble clic (file://).
+   Diseño: boceto 5 ("Fichas"). Movimiento según emil-design-eng:
+   - nada se anima si lo dispara el teclado;
+   - pulsar responde al instante (scale .97);
+   - entradas y salidas ≤ 240 ms con ease-out fuerte, por transición;
+   - lo irreversible se confirma manteniendo pulsado;
+   - :hover solo con puntero fino; reduced motion = solo fundidos.
+   ========================================================================== */
+:root{
+  --bg:#eeebe5; --card:#fbfaf7; --card-2:#f3f0e9; --ink:#17171a; --ink-2:#55524c; --ink-3:#6c685f; --line:#d9d3c7;
+  --accent:#2a43d6; --accent-soft:rgba(42,67,214,.1); --ok:#0f7a47; --ok-soft:rgba(15,122,71,.11); --ko:#c2321f; --ko-soft:rgba(194,50,31,.1);
+  --warn:#8f5400; --warn-soft:rgba(143,84,0,.12); --hl:#ffe46b; --hl-ink:#17171a; --on-solid:#fff;
+  --ease-out:cubic-bezier(0.23,1,0.32,1);
+  --display:"Aptos Display","Segoe UI Variable Display","SF Pro Display",-apple-system,system-ui,sans-serif;
+  --text:"Aptos","Segoe UI Variable Text","SF Pro Text",-apple-system,system-ui,sans-serif;
+  --shadow:0 1px 0 rgba(0,0,0,.04),0 2px 6px rgba(40,30,10,.06),0 12px 28px -12px rgba(40,30,10,.18);
+}
+/* Tema: «automático» sigue al sistema; data-theme="light"/"dark" en <html> lo fija a mano */
+:root{color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){
+  color-scheme:dark;
+  --bg:#121211; --card:#1c1c1b; --card-2:#252523; --ink:#f1efe9; --ink-2:#bdb8ae; --ink-3:#98938a; --line:#36352f;
+  --accent:#9aa8ff; --accent-soft:rgba(154,168,255,.15); --ok:#55d995; --ok-soft:rgba(85,217,149,.13); --ko:#ff8572; --ko-soft:rgba(255,133,114,.13);
+  --warn:#f2b552; --warn-soft:rgba(242,181,82,.14); --hl:#ffe46b; --hl-ink:#17171a; --on-solid:#121211;
+  --shadow:0 1px 0 rgba(255,255,255,.03),0 12px 28px -12px rgba(0,0,0,.6);
+}}
+:root[data-theme=dark]{
+  color-scheme:dark;
+  --bg:#121211; --card:#1c1c1b; --card-2:#252523; --ink:#f1efe9; --ink-2:#bdb8ae; --ink-3:#98938a; --line:#36352f;
+  --accent:#9aa8ff; --accent-soft:rgba(154,168,255,.15); --ok:#55d995; --ok-soft:rgba(85,217,149,.13); --ko:#ff8572; --ko-soft:rgba(255,133,114,.13);
+  --warn:#f2b552; --warn-soft:rgba(242,181,82,.14); --hl:#ffe46b; --hl-ink:#17171a; --on-solid:#121211;
+  --shadow:0 1px 0 rgba(255,255,255,.03),0 12px 28px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);font:16px/1.5 var(--text)}
+button,a,label.chip{touch-action:manipulation;font:inherit;color:inherit}
+button,.chip,.tabs{-webkit-user-select:none;user-select:none}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:8px}
+.num{font-family:var(--display);font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:-.04em}
+.small{font-size:13px;color:var(--ink-2)}
+.muted{color:var(--ink-3);font-size:12px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+kbd{font:600 11px var(--text);min-width:20px;height:20px;padding:0 5px;display:inline-grid;place-items:center;border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;color:var(--ink-2);background:var(--card)}
+h1{font:800 clamp(30px,5vw,40px)/1.05 var(--display);letter-spacing:-.03em;margin:10px 0 6px}
+h2{font:700 13px var(--text);text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3);margin:30px 0 10px}
+h3{font:800 20px/1.2 var(--display);letter-spacing:-.02em;margin:0}
+p{margin:.4em 0}
+.press{transition:transform 120ms var(--ease-out)}
+.press:active{transform:scale(.97)}
+
+/* ---------- Pestañas con indicador por clip-path ---------- */
+.tabs-wrap{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;background:color-mix(in srgb,var(--bg) 86%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);padding:calc(env(safe-area-inset-top) + 10px) 16px 10px}
+.tabs-scroll{flex:1;min-width:0;overflow-x:auto;scrollbar-width:none}
+.theme-btn{flex:none;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:6px 11px;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;transition:transform 120ms var(--ease-out)}
+.theme-btn:active{transform:scale(.97)}
+.theme-btn svg{width:16px;height:16px}
+@media (max-width:640px){.theme-btn span{display:none}.theme-btn{padding:7px}}
+.tabs{position:relative;display:inline-flex;min-width:max-content}
+.tabs ul{list-style:none;margin:0;padding:0;display:flex;gap:2px}
+.tabs button{border:0;background:none;padding:8px 14px;border-radius:99px;font-weight:600;font-size:14px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.tabs .active{position:absolute;inset:0;pointer-events:none;transition:clip-path 240ms var(--ease-out)}
+.tabs .active button{background:var(--ink);color:var(--bg)}
+body.focus .tabs-wrap{display:none}
+main{max-width:780px;margin:0 auto;padding:8px 16px calc(env(safe-area-inset-bottom) + 120px)}
+.storage-warn{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:10px 14px;font-size:14px;margin:8px 0}
+
+/* ---------- Entrada escalonada (solo la 1.ª vez del día) ---------- */
+.stagger>*{opacity:0;transform:translateY(8px);animation:rise 320ms var(--ease-out) forwards}
+.stagger>*:nth-child(2){animation-delay:50ms}.stagger>*:nth-child(3){animation-delay:100ms}.stagger>*:nth-child(4){animation-delay:150ms}.stagger>*:nth-child(n+5){animation-delay:200ms}
+@keyframes rise{to{opacity:1;transform:none}}
+
+/* ---------- Comunes ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 14px;font-weight:600;cursor:pointer;text-decoration:none;transition:transform 120ms var(--ease-out)}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.ghost{background:none;border-color:transparent}
+.btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+.btn[aria-pressed=true]{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.btn.big{padding:14px 20px;border-radius:99px;font-weight:700}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:5px 11px;font-size:13px;font-weight:600;background:var(--card);border:1px solid var(--line);cursor:pointer}
+.chip[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:.02em;white-space:nowrap}
+.tag.des{background:var(--accent-soft);color:var(--accent)}.tag.dud{background:var(--warn-soft);color:var(--warn)}
+.tag.anu{background:var(--ko-soft);color:var(--ko)}.tag.res{background:var(--card-2);color:var(--ink-2);border:1px solid var(--line)}
+.tag.fdt{background:var(--card-2);color:var(--ink-2);border:1px dashed var(--ink-3)}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}
+.warn-box{background:var(--warn-soft);border-radius:14px;padding:12px 14px;color:var(--ink);font-size:15px}
+.warn-box b{color:var(--warn)}
+.info-box{background:var(--accent-soft);border-radius:14px;padding:12px 14px;font-size:15px}
+/* Interruptor */
+.switch{display:flex;align-items:center;gap:12px;padding:10px 0;cursor:pointer}
+.switch input{appearance:none;width:46px;height:28px;flex:none;border-radius:99px;background:var(--line);position:relative;cursor:pointer;transition:background-color 200ms ease;margin:0}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform 220ms var(--ease-out)}
+.switch input:checked{background:var(--ok)}
+.switch input:checked::after{transform:translateX(18px)}
+.switch input:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.switch span b{display:block;font-weight:600}
+.switch span small{display:block;font-size:13px;color:var(--ink-2)}
+/* Mantener pulsado para confirmar */
+.hold{position:relative;overflow:hidden;border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 16px;font-weight:700;cursor:pointer;transition:transform 120ms var(--ease-out)}
+.hold:active{transform:scale(.97)}
+.hold .fill{position:absolute;inset:0;background:var(--ink);color:var(--bg);display:grid;place-items:center;clip-path:inset(0 100% 0 0);transition:clip-path 200ms var(--ease-out)}
+.hold.holding .fill{clip-path:inset(0 0 0 0);transition:clip-path var(--hold,1.5s) linear}
+.hold.danger{border-color:var(--ko);color:var(--ko)}.hold.danger .fill{background:var(--ko);color:var(--on-solid)}
+
+/* ---------- INICIO ---------- */
+.top{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;margin:8px 0 22px}
+.days{font-size:clamp(84px,17vw,148px);line-height:.82}
+.days small{display:block;font:500 15px var(--text);letter-spacing:0;color:var(--ink-2);margin-top:12px}
+.streak{text-align:right}
+.streak .num{font-size:44px;line-height:1}
+.ticks{display:flex;gap:3px;justify-content:flex-end;margin-top:8px}
+.ticks i{width:6px;height:18px;border-radius:2px;background:var(--line)}
+.ticks i.on{background:var(--ink)}
+.ticks i.today{background:none;box-shadow:inset 0 0 0 1.5px var(--ink)}
+.ticks i.today.on{background:var(--ink)}
+.deck{position:relative;margin:6px 0 22px}
+.deck .f{position:absolute;inset:0;border-radius:18px;background:var(--card);box-shadow:var(--shadow);border:1px solid var(--line);transition:transform 260ms var(--ease-out)}
+.deck .f:nth-child(1){transform:rotate(-3.5deg) translateY(10px) scale(.94)}
+.deck .f:nth-child(2){transform:rotate(2.5deg) translateY(5px) scale(.97)}
+.deck .f.front{position:relative;inset:auto;min-height:180px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:end;padding:22px;text-align:left;cursor:pointer;width:100%;color:inherit}
+.deck .f.front .num{font-size:64px;line-height:.9;display:block}
+.deck .f.front b{display:block;font:700 22px/1.15 var(--display);letter-spacing:-.02em;margin-top:6px}
+.go{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:var(--bg);border-radius:99px;padding:12px 18px;font-weight:700;white-space:nowrap}
+.goal{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--ink-2);margin:18px 0 18px}
+.goal .track{flex:1;height:6px;border-radius:3px;background:var(--card-2);overflow:hidden}
+.goal .track i{display:block;height:100%;background:var(--ok);border-radius:3px}
+.resume{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--hl);color:var(--hl-ink);border-radius:16px;padding:12px 16px;margin-bottom:16px}
+.resume .btn{background:var(--hl-ink);color:#fff;border-color:var(--hl-ink)}
+.modes{display:grid;border-top:1px solid var(--line)}
+.mode{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:14px 4px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;cursor:pointer;width:100%}
+.mode b{font:700 18px var(--display);letter-spacing:-.015em}
+.mode span span{display:block;font-size:13px;color:var(--ink-2)}
+.bars{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;align-items:center;font-size:14px}
+.bars .t{font-weight:700;font-variant-numeric:tabular-nums;min-width:3ch}
+.bars .track{position:relative;height:10px;border-radius:5px;background:var(--card-2);overflow:hidden}
+.bars .track i{position:absolute;inset:0 auto 0 0;border-radius:5px;background:var(--ink)}
+.bars .track i.low{background:var(--ko)}
+.bars .track::after{content:"";position:absolute;left:60%;top:0;bottom:0;border-left:1.5px dashed var(--ink-3)}
+.bars .p{font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right;white-space:nowrap}
+.bars .p.low{color:var(--ko);font-weight:700}
+.drop{border:1.5px dashed var(--ink-3);border-radius:18px;padding:26px;text-align:center;background:var(--card);cursor:pointer;transition:transform 200ms var(--ease-out),border-color 150ms ease,background-color 150ms ease;display:block;width:100%}
+.drop.over{transform:scale(1.01);border-color:var(--accent);background:var(--accent-soft)}
+.drop-overlay{position:fixed;inset:0;z-index:60;background:color-mix(in srgb,var(--bg) 80%,transparent);display:grid;place-items:center;font:800 28px var(--display);opacity:0;pointer-events:none;transition:opacity 150ms ease}
+.drop-overlay.on{opacity:1}
+
+/* ---------- Configurar práctica ---------- */
+.temas{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.tema{display:block;text-align:left;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:8px 10px;cursor:pointer;min-height:64px;transition:transform 120ms var(--ease-out)}
+.tema:active{transform:scale(.97)}
+.tema b{font:800 15px var(--display);display:flex;justify-content:space-between;gap:6px}
+.tema b span{font:600 12px var(--text);color:var(--ink-3)}
+.tema small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12px;line-height:1.3;color:var(--ink-2);margin-top:2px}
+.tema[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--card-2)}
+.tema[aria-pressed=true] b::after{content:"✓";font-size:13px}
+.tema[disabled]{opacity:.4;cursor:not-allowed}
+.tema.low b{color:var(--ko)}
+.field{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0}
+.field input[type=number]{width:90px;font:600 16px var(--text);padding:9px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+.stickybar{position:sticky;bottom:calc(env(safe-area-inset-bottom) + 12px);margin-top:24px;padding:10px 12px;border-radius:99px;border:1px solid var(--line);
+  background:color-mix(in srgb,var(--card) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:var(--shadow);width:max-content;max-width:100%}
+.need{display:grid;grid-template-columns:1fr auto;gap:6px 14px;font-size:15px}
+.need .v{font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
+.need .v.bad{color:var(--ko)}.need .v.good{color:var(--ok)}
+.bank-list{display:grid;gap:8px}
+.bank-mini{display:flex;gap:10px;align-items:flex-start;font-size:14px}
+.bank-mini .dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex:none}
+
+/* ---------- Ficha de pregunta ---------- */
+.sbar{position:sticky;top:0;z-index:15;display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:calc(env(safe-area-inset-top) + 10px) 0 10px;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font-size:14px;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.sbar .chip{cursor:default}
+.sbar .timer{margin-left:auto;font-weight:800;font-family:var(--display);font-size:17px;color:var(--ink);letter-spacing:-.01em}
+.sbar .timer.low{color:var(--ko)}
+.progress{height:3px;border-radius:2px;background:var(--line);overflow:hidden;margin-bottom:14px}
+.progress i{display:block;height:100%;background:var(--ink);transform-origin:left}
+.pile{position:relative;padding-bottom:26px}
+.pile::before,.pile::after{content:"";position:absolute;left:0;right:0;top:0;bottom:26px;border-radius:22px;background:var(--card);border:1px solid var(--line);z-index:0}
+.pile::before{transform:translateY(26px) scale(.94);opacity:.55}
+.pile::after{transform:translateY(14px) scale(.97);opacity:.85}
+.pile.last::before{display:none}.pile.only::before,.pile.only::after{display:none}
+.fcard{position:relative;z-index:1;background:var(--card);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:clamp(18px,4vw,34px);transition:transform 220ms var(--ease-out),opacity 220ms var(--ease-out)}
+.fcard.out{transform:translateY(-10px) scale(.98);opacity:0}
+.fcard.in{transform:translateY(10px) scale(.97);opacity:.4;transition:none}
+.fcard:focus{outline:none}
+.meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:13px;color:var(--ink-2);margin-bottom:14px}
+.meta .tema-code{font-weight:800;color:var(--hl-ink);background:var(--hl);padding:1px 7px;border-radius:5px}
+.qtext{font:600 clamp(19px,2.6vw,23px)/1.45 var(--display);letter-spacing:-.012em;margin:0 0 22px;white-space:pre-line;text-wrap:pretty}
+.opts{display:grid;gap:8px}
+.opt{display:grid;grid-template-columns:30px 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;background:var(--card);padding:12px 14px 12px 12px;font-size:17px;line-height:1.4;cursor:pointer;
+  transition:transform 120ms var(--ease-out),border-color 150ms ease,background-color 150ms ease}
+.opt:active{transform:scale(.985)}
+.opt .k{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--card-2);font-weight:800;font-size:13px;color:var(--ink-2)}
+.opt .t{white-space:pre-line}
+.opt .who{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.opt[aria-pressed=true]{border-color:var(--ink);background:var(--card-2);box-shadow:inset 0 0 0 1px var(--ink)}
+.opt[aria-pressed=true] .k{background:var(--ink);color:var(--bg)}
+.opt.right{border-color:var(--ok);background:var(--ok-soft);box-shadow:none}.opt.right .k{background:var(--ok);color:var(--on-solid)}.opt.right .who{color:var(--ok)}
+.opt.wrong{border-color:var(--ko);background:var(--ko-soft);box-shadow:none}.opt.wrong .k{background:var(--ko);color:var(--on-solid)}.opt.wrong .who{color:var(--ko)}
+.opt.dim{opacity:.6}
+.opt[disabled]{cursor:default;color:inherit}
+.kbd,.kbd *{transition:none!important}
+.reveal{display:grid;grid-template-rows:0fr;transition:grid-template-rows 220ms var(--ease-out)}
+.reveal.open{grid-template-rows:1fr}
+.reveal>div{overflow:hidden;min-height:0}
+.explain{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;font-size:15px}
+.explain .head{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.verdict{font:800 18px var(--display);letter-spacing:-.01em}
+.note{background:var(--accent-soft);border-radius:12px;padding:12px 14px;margin-top:12px}
+.note.dud{background:var(--warn-soft)}
+.note p{margin:.25em 0}
+.note .lbl{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+details.more{margin-top:10px;font-size:13px;color:var(--ink-2)}
+details.more summary{cursor:pointer;font-weight:600}
+details.more p{word-break:break-word}
+.doubt{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:7px 12px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:transform 120ms var(--ease-out)}
+.doubt:active{transform:scale(.97)}
+.doubt .chk{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--ink-3);display:grid;place-items:center;font-size:10px;color:transparent;transition:background-color 150ms ease,border-color 150ms ease,color 150ms ease}
+.doubt[aria-pressed=true]{border-color:var(--warn);color:var(--warn)}
+.doubt[aria-pressed=true] .chk{background:var(--warn);border-color:var(--warn);color:var(--on-solid)}
+.actions{display:flex;gap:8px;align-items:center;margin-top:18px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--ink-3);margin-top:12px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.case{background:var(--card);border:1px solid var(--line);border-radius:18px;margin-bottom:14px}
+.case summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;gap:10px;justify-content:space-between;font-weight:700}
+.case summary::-webkit-details-marker{display:none}
+.case summary .small::before{content:"ocultar"}
+.case:not([open]) summary .small::before{content:"mostrar"}
+.case .body{max-height:min(38vh,340px);overflow:auto;padding:0 18px 14px;font-size:15px;line-height:1.55;overscroll-behavior:contain}
+.case .body p{margin:0 0 .6em}.case .body ul,.case .body ol{margin:0 0 .6em;padding-left:1.3em}
+.case .body h4{font-size:15px;margin:.6em 0 .3em}
+.tbl{overflow-x:auto;margin:.4em 0 .8em;border:1px solid var(--line);border-radius:10px}
+.tbl table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+.tbl th,.tbl td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.tbl th{background:var(--card-2);font-weight:700}
+.tbl tr:last-child td{border-bottom:0}
+.grid80{display:grid;grid-template-columns:repeat(auto-fill,minmax(30px,1fr));gap:4px;margin-top:12px}
+.grid80 button{aspect-ratio:1;border:1px solid var(--line);border-radius:6px;background:var(--card);font-size:11px;font-weight:600;color:var(--ink-2);padding:0;cursor:pointer}
+.grid80 .a{background:var(--ink-3);color:var(--bg);border-color:var(--ink-3)}
+.grid80 .f{box-shadow:inset 0 -3px 0 var(--warn)}
+.grid80 .c{outline:2px solid var(--ink);outline-offset:1px}
+.grid80 .sep{grid-column:1/-1;font-size:12px;color:var(--ink-3);font-weight:700;margin-top:4px}
+.sheet{margin-top:16px}
+.between{text-align:center;padding:40px 20px}
+
+/* ---------- Resultado ---------- */
+.ticket{max-width:480px;margin:8px auto 0;background:var(--card);border:1px solid var(--line);border-radius:6px 6px 0 0;box-shadow:var(--shadow);padding:26px 24px 30px;position:relative;
+  --m:radial-gradient(circle at 8px 0,transparent 7px,#000 7.5px);-webkit-mask:var(--m) 0 100%/16px 100% repeat-x,linear-gradient(#000 0 0) 0 0/100% calc(100% - 8px) no-repeat;mask:var(--m) 0 100%/16px 100% repeat-x,linear-gradient(#000 0 0) 0 0/100% calc(100% - 8px) no-repeat}
+.ticket.print{animation:print 900ms var(--ease-out) both}
+@keyframes print{from{clip-path:inset(0 0 100% 0);transform:translateY(-12px)}to{clip-path:inset(0 0 0 0);transform:none}}
+.ticket .head{text-align:center;border-bottom:1px dashed var(--line);padding-bottom:16px}
+.ticket .total{font-size:clamp(64px,16vw,92px);line-height:.9}
+.ticket .total small{font-size:22px;color:var(--ink-3);letter-spacing:0}
+.stamp{display:inline-block;margin-top:12px;border:2.5px solid var(--ok);color:var(--ok);font:900 22px var(--display);letter-spacing:.2em;padding:4px 14px 4px 18px;border-radius:6px;transform:rotate(-4deg)}
+.stamp.no{border-color:var(--ko);color:var(--ko)}
+.stamp.unofficial{display:block;width:max-content;margin:0 auto 10px;border-color:var(--warn);color:var(--warn);font-size:13px;letter-spacing:.12em;transform:none}
+.ticket.print .stamp:not(.unofficial){animation:stamp 260ms var(--ease-out) 900ms both}
+@keyframes stamp{from{opacity:0;transform:rotate(-4deg) scale(1.25)}to{opacity:1;transform:rotate(-4deg) scale(1)}}
+.line{display:flex;gap:8px;align-items:baseline;font-size:15px;margin:6px 0;font-variant-numeric:tabular-nums}
+.line .dots{flex:1;border-bottom:1.5px dotted var(--ink-3);transform:translateY(-4px);min-width:12px}
+.sec{font:800 13px var(--text);letter-spacing:.08em;text-transform:uppercase;margin:18px 0 6px;display:flex;justify-content:space-between;gap:10px}
+.okline{font-size:13px;color:var(--ok);font-weight:600;margin-top:4px}
+.koline{font-size:13px;color:var(--ko);font-weight:600;margin-top:4px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.summary .card{padding:14px}
+.summary .num{font-size:34px;line-height:1}
+.review-item{margin-top:12px}
+.review-item .fcard{box-shadow:none;padding:18px}
+.review-item .qtext{font-size:18px;margin-bottom:14px}
+.review-item .opt{font-size:15px;padding:9px 12px 9px 10px}
+
+/* ---------- Bancos ---------- */
+.bank{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:12px}
+.bank.off{opacity:.62}
+.bank .headrow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:start}
+.facts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.fact{font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:3px 8px;background:var(--card)}
+.fact.n{background:var(--card-2)}
+.fact.w{color:var(--warn)}.fact.a{color:var(--accent)}.fact.k{color:var(--ko)}
+.issues{margin-top:10px;font-size:13px}
+.issues summary{cursor:pointer;font-weight:600;color:var(--ko)}
+.issues ul{margin:6px 0 0;padding-left:1.2em}
+.report li{margin:4px 0}
+
+/* ---------- Progreso ---------- */
+.heat{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.heat.t{grid-template-columns:repeat(7,1fr);margin-top:4px}
+.heat div{border-radius:10px;padding:8px 6px;min-height:58px;display:flex;flex-direction:column;justify-content:space-between;border:1px solid transparent}
+.heat div b{font:800 14px var(--display)}
+.heat div span{font-size:12px;font-variant-numeric:tabular-nums}
+.heat div.low{border-color:var(--ko);border-width:2px}
+.heat div.none{border:1px dashed var(--line);color:var(--ink-3)}
+.chart{width:100%;height:auto;display:block}
+.chart text{font:12px var(--text);fill:var(--ink-3)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 14px;font-size:15px}
+.kv span:nth-child(even){font-variant-numeric:tabular-nums;font-weight:700;text-align:right}
+.tests li{margin:3px 0}
+.tests .pass{color:var(--ok)}.tests .fail{color:var(--ko)}
+
+/* ---------- Informe de fallos ---------- */
+.print-only{display:none}
+.inf-orden{margin:0;padding-left:1.4em;display:grid;gap:8px}
+.inf-ep{margin:26px 0 4px;display:flex;gap:8px;align-items:baseline;font-size:18px}
+.inf-ep .tema-code{font:800 14px var(--display);color:var(--hl-ink);background:var(--hl);padding:1px 7px;border-radius:5px}
+.tbl tr.low td:nth-child(2){color:var(--ko);font-weight:700}
+.inf-src{word-break:break-word}
+.inf-q .case{margin:8px 0 0}
+.inf-temas{gap:6px}
+.inf-temas .chip{min-width:52px;justify-content:center}
+.inf-temas .chip .small{color:inherit;opacity:.7;font-weight:700}
+@media print{
+  :root{color-scheme:light!important;--bg:#fff!important;--card:#fff!important;--card-2:#f3f0e9!important;--ink:#17171a!important;--ink-2:#55524c!important;--ink-3:#6c685f!important;--line:#d9d3c7!important;
+    --accent:#2a43d6!important;--accent-soft:rgba(42,67,214,.1)!important;--ok:#0f7a47!important;--ok-soft:rgba(15,122,71,.11)!important;--ko:#c2321f!important;--ko-soft:rgba(194,50,31,.1)!important;
+    --warn:#8f5400!important;--warn-soft:rgba(143,84,0,.12)!important;--on-solid:#fff!important;--shadow:none!important}
+  html,body{background:#fff}
+  .tabs-wrap,.toaster,.drop-overlay,.no-print,.storage-warn{display:none!important}
+  .print-only{display:block}
+  main{max-width:none;padding:0}
+  h2{margin-top:22px}
+  h2,h3{break-after:avoid}
+  .inf-q,.tbl tr,.inf-orden li{break-inside:avoid}
+  .case .body{max-height:none;overflow:visible}
+  .opt.dim{opacity:.75}
+  .review-item .fcard{padding:12px 14px}
+}
+
+/* ---------- Diálogo ---------- */
+dialog{border:1px solid var(--line);border-radius:20px;background:var(--card);color:var(--ink);padding:22px;max-width:min(560px,calc(100% - 32px));max-height:min(80dvh,720px);overflow:auto;box-shadow:0 30px 80px -20px rgba(0,0,0,.45)}
+dialog::backdrop{background:rgba(10,10,10,.35)}
+dialog[open]{animation:pop 200ms var(--ease-out)}
+@keyframes pop{from{opacity:0;transform:scale(.97)}}
+dialog .actions{justify-content:flex-end}
+
+/* ---------- Avisos apilados (al estilo Sonner) ---------- */
+/* Contraseña de entrada (solo en la versión publicada) */
+.bloqueada .tabs-wrap,.bloqueada main,.bloqueada .toaster{display:none}
+.candado{min-height:100dvh;display:grid;place-items:center;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)}
+.candado form{width:min(380px,100%);display:grid;gap:12px}
+.candado img{border-radius:14px}
+.candado h1,.candado p{margin:0}
+.candado input{font:inherit;font-size:17px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.candado input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.candado .err{color:var(--ko);min-height:1.5em}
+.toaster{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);width:min(380px,calc(100% - 32px));transform:translateX(-50%);z-index:70;height:0}
+.toast{position:absolute;left:0;right:0;bottom:0;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;font-size:14px;box-shadow:0 10px 30px -8px rgba(0,0,0,.35);
+  transition:transform 400ms ease,opacity 400ms ease;transform:translateY(calc(var(--i) * -10px)) scale(calc(1 - var(--i) * .05));opacity:calc(1 - var(--i) * .25)}
+.toast[data-mounted=false]{transform:translateY(120%);opacity:0}
+.toast[data-leaving=true]{transform:translateY(120%);opacity:0;transition-duration:200ms}
+.toast .em{width:28px;height:28px;border-radius:8px;background:var(--hl);color:var(--hl-ink);display:grid;place-items:center;font-weight:800;flex:none}
+.toast small{display:block;opacity:.75;font-size:12px}
+
+@media (hover:hover) and (pointer:fine){
+  .toaster:hover .toast{transform:translateY(calc(var(--i) * -110%));opacity:1}
+  .opt:not([disabled]):hover{border-color:var(--ink-3)}
+  .tema:not([disabled]):hover{border-color:var(--ink-3)}
+  .deck:hover .f:nth-child(1){transform:rotate(-6deg) translate(-10px,10px) scale(.94)}
+  .deck:hover .f:nth-child(2){transform:rotate(4deg) translate(8px,4px) scale(.97)}
+  .mode:hover b{text-decoration:underline;text-underline-offset:3px}
+}
+@media (max-width:640px){
+  .hint.keys{display:none}
+  .deck .f.front{grid-template-columns:1fr;min-height:0}
+  .deck .f.front .go{justify-self:start}
+  .heat{grid-template-columns:repeat(4,1fr)}.heat.t{grid-template-columns:repeat(4,1fr)}
+  .opt{font-size:16px}
+}
+@media (prefers-reduced-motion:reduce){
+  .stagger>*{animation:fade 200ms ease forwards;transform:none}
+  @keyframes fade{to{opacity:1}}
+  .fcard,.fcard.out,.fcard.in{transform:none!important}
+  .toast,.toast[data-mounted=false],.toast[data-leaving=true]{transform:none}
+  .ticket.print{animation:fade 200ms ease both}
+  .ticket.print .stamp{animation:none}
+  .press:active,.opt:active,.hold:active,.btn:active,.tema:active,.doubt:active{transform:none}
+  .deck .f,.drop{transition:none}
+  dialog[open]{animation:fade 150ms ease}
+}
+</style>
+</head>
+<body>
+<a class="sr" href="#main">Saltar al contenido</a>
+<div class="tabs-wrap">
+  <div class="tabs-scroll">
+  <nav class="tabs" id="tabs" aria-label="Secciones">
+    <ul>
+      <li><button data-go="inicio">Inicio</button></li>
+      <li><button data-go="practicar">Practicar</button></li>
+      <li><button data-go="simulacro">Simulacro</button></li>
+      <li><button data-go="repaso">Repaso</button></li>
+      <li><button data-go="bancos">Bancos</button></li>
+      <li><button data-go="progreso">Progreso</button></li>
+    </ul>
+    <ul class="active" aria-hidden="true">
+      <li><button tabindex="-1">Inicio</button></li><li><button tabindex="-1">Practicar</button></li><li><button tabindex="-1">Simulacro</button></li><li><button tabindex="-1">Repaso</button></li><li><button tabindex="-1">Bancos</button></li><li><button tabindex="-1">Progreso</button></li>
+    </ul>
+  </nav>
+  </div>
+  <button class="theme-btn" id="themeBtn" data-act="cicloTema" type="button"></button>
+</div>
+<main id="main" tabindex="-1"></main>
+<div class="toaster" id="toaster" aria-live="polite"></div>
+<div class="sr" id="live" aria-live="assertive"></div>
+<div class="drop-overlay" id="dropOverlay" aria-hidden="true">Suelta para cargar los bancos</div>
+<input type="file" id="fileInput" accept=".csv,.md,text/csv,text/markdown" multiple hidden>
+<input type="file" id="importInput" accept=".json,application/json" hidden>
+<dialog id="dlg" aria-labelledby="dlgTitle"></dialog>
+
+<script>
+'use strict';
+/* ==========================================================================
+   1. CONFIGURACIÓN Y UTILIDADES
+   ========================================================================== */
+const FECHA_EXAMEN = new Date(2027, 0, 23);          // fecha objetivo de la cuenta atrás
+const K = { bancos: 'fichas.bancos.v1', progreso: 'fichas.progreso.v1', sesion: 'fichas.sesion.v1', ui: 'fichas.ui.v1' };
+const TEMAS_C = ['C1','C2','C3','C4','C5','C6','C7','C8'];
+const TEMAS_T = ['T1','T2','T3','T4','T5','T6','T7','T8','T9','T10','T11','T12','T13','T14'];
+const TEMAS = [...TEMAS_C, ...TEMAS_T];
+const FDT = 'FUERA DE TEMARIO';
+const DIA = 864e5;
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const pad2 = n => String(n).padStart(2, '0');
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+const fmt = (n, d = 2) => (Math.abs(n) < 5e-10 ? 0 : n).toLocaleString('es-ES', {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const plural = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+const collator = new Intl.Collator('es', {numeric: true, sensitivity: 'base'});
+const temaOrden = t => { const i = TEMAS.indexOf(t); return i < 0 ? 99 : i; };
+function shuffle(a) { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function daysToExam() { const n = new Date(); return Math.round((FECHA_EXAMEN - new Date(n.getFullYear(), n.getMonth(), n.getDate())) / DIA); }
+
+/* Almacenamiento: cada acceso a localStorage va en try/catch.
+   Si falla (modo privado, cuota llena, bloqueado), la app sigue con una copia en memoria. */
+const store = {
+  ok: true, mem: {},
+  get(k, def) {
+    try {
+      const v = localStorage.getItem(k);
+      if (v == null) return k in this.mem ? this.mem[k] : def;
+      return JSON.parse(v);
+    } catch (e) { this.ok = false; return k in this.mem ? this.mem[k] : def; }
+  },
+  set(k, v) {
+    this.mem[k] = v;
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; }
+    catch (e) { this.ok = false; this.error = e; return false; }
+  },
+  del(k) { delete this.mem[k]; try { localStorage.removeItem(k); } catch (e) { this.ok = false; } }
+};
+
+/* ==========================================================================
+   2. PARSER CSV (RFC 4180, separador «;», comillas dobles, saltos dentro de campo)
+   ========================================================================== */
+function parseCSV(text, sep = ';') {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);            // BOM
+  const rows = []; let row = [], field = '', inQ = false, line = 1, rowLine = 1;
+  const endField = () => { row.push(field.replace(/\r\n?/g, '\n')); field = ''; };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else { if (c === '\n') line++; field += c; }
+    } else if (c === '"') inQ = true;
+    else if (c === sep) endField();
+    else if (c === '\r') { /* parte de CRLF */ }
+    else if (c === '\n') { endField(); rows.push({cells: row, line: rowLine}); row = []; line++; rowLine = line; }
+    else field += c;
+  }
+  if (field !== '' || row.length) { endField(); rows.push({cells: row, line: rowLine}); }
+  return {rows, unterminated: inQ};
+}
+
+/* ==========================================================================
+   3. BANCOS: lectura, validación y metadatos (nada concreto en el código:
+      todo se deduce del nombre del archivo y de sus filas)
+   ========================================================================== */
+const COLUMNAS = ['id','examen','parte','tema','epigrafe','n_opciones','pregunta','A','B','C','D','respuesta_oficial','estado','respuesta_actual','fuente','nota'];
+const PARTES = ['comun','especifica','reserva','supuesto'];
+const ESTADOS = ['VIGENTE','DESACTUALIZADA','DUDOSA'];
+
+/* «2025_MINISTERIO_L» → año, organismo y turno */
+function bankMeta(prefix) {
+  const m = prefix.match(/^(\d{4})_(.+)_(L|PI)$/i);
+  const title = s => s.replace(/_/g, ' ');            // tal cual: suelen ser siglas (MPT, MITECO…)
+  if (m) return {year: m[1], org: title(m[2]), turno: m[3].toUpperCase()};
+  return {year: '', org: prefix, turno: /_PI$/i.test(prefix) ? 'PI' : /_L$/i.test(prefix) ? 'L' : '?'};
+}
+const turnoTxt = t => t === 'L' ? 'Acceso libre' : t === 'PI' ? 'Promoción interna' : 'Turno sin identificar';
+const bankName = b => b.year ? `${b.year} · ${b.org}` : b.org;
+
+function parseBankCSV(prefix, text) {
+  const res = {questions: [], invalid: [], warnings: [], fatal: null};
+  const {rows, unterminated} = parseCSV(text);
+  if (!rows.length) { res.fatal = 'El archivo está vacío.'; return res; }
+  const head = rows[0].cells.map(h => h.trim());
+  const col = {};
+  COLUMNAS.forEach(c => col[c] = head.findIndex(h => h.toLowerCase() === c.toLowerCase()));
+  const missing = COLUMNAS.filter(c => col[c] < 0);
+  if (missing.length) { res.fatal = `Faltan columnas: ${missing.join(', ')}. ¿Está separado por punto y coma?`; return res; }
+  if (unterminated) res.warnings.push('El archivo termina con unas comillas sin cerrar: puede faltar el final.');
+  const seen = new Set();
+  for (const r of rows.slice(1)) {
+    if (r.cells.every(c => !c.trim())) continue;                       // filas vacías
+    const g = c => r.cells[col[c]] ?? '';
+    const q = {
+      id: g('id').trim(), examen: g('examen').trim(), parte: g('parte').trim().toLowerCase(),
+      tema: g('tema').trim().toUpperCase(), epigrafe: g('epigrafe').trim(), n: parseInt(g('n_opciones'), 10),
+      pregunta: g('pregunta'), A: g('A'), B: g('B'), C: g('C'), D: g('D'),
+      oficial: g('respuesta_oficial').trim().toUpperCase(), estado: (g('estado').trim().toUpperCase() || 'VIGENTE'),
+      actual: g('respuesta_actual'), fuente: g('fuente'), nota: g('nota'), bank: prefix, line: r.line
+    };
+    const errs = [];
+    if (!q.id) errs.push('sin id');
+    else if (seen.has(q.id)) errs.push('id repetido en este archivo');
+    if (r.cells.length !== head.length) errs.push(`tiene ${r.cells.length} columnas y la cabecera ${head.length}`);
+    if (!PARTES.includes(q.parte)) errs.push(`parte desconocida «${q.parte || 'vacía'}»`);
+    if (q.n !== 3 && q.n !== 4) errs.push(`n_opciones debe ser 3 o 4 (es «${g('n_opciones')}»)`);
+    if (!q.pregunta.trim()) errs.push('pregunta vacía');
+    const letras = q.n === 3 ? ['A','B','C'] : ['A','B','C','D'];
+    letras.forEach(L => { if (!q[L].trim()) errs.push(`opción ${L} vacía`); });
+    if (!q.oficial) errs.push('sin respuesta oficial');
+    else if (q.oficial !== 'ANULADA' && !letras.includes(q.oficial)) errs.push(`respuesta oficial «${q.oficial}» no válida`);
+    if (q.parte === 'supuesto') {
+      const m = q.id.match(/_S(\d+)_(\d+)$/i);
+      if (!m) errs.push('el id de supuesto no termina en _S<n>_<nn>'); else { q.sup = +m[1]; q.supPos = +m[2]; }
+    }
+    if (q.id) seen.add(q.id);
+    if (errs.length) { res.invalid.push({line: r.line, id: q.id || '—', reasons: errs}); continue; }
+    if (!ESTADOS.includes(q.estado)) { res.warnings.push(`Fila ${r.line} (${q.id}): estado «${q.estado}» desconocido, se trata como VIGENTE.`); q.estado = 'VIGENTE'; }
+    if (!TEMAS.includes(q.tema) && q.tema !== FDT) res.warnings.push(`Fila ${r.line} (${q.id}): tema «${q.tema}» fuera de C1–C8 y T1–T14.`);
+    if (q.n === 3 && q.D.trim()) res.warnings.push(`Fila ${r.line} (${q.id}): tiene 3 opciones pero la D no está vacía; se ignora la D.`);
+    q.anulada = q.oficial === 'ANULADA';
+    q.fuera = q.tema === FDT;
+    // Reservas: las de la parte 1 y las dos últimas de cada supuesto (posiciones 11 y 12)
+    q.reserva = q.parte === 'reserva' || (q.parte === 'supuesto' && q.supPos > 10);
+    q.bloque = q.parte === 'comun' ? 'C' : q.parte === 'especifica' ? 'T' : q.parte === 'reserva' ? (q.tema.startsWith('C') ? 'C' : 'T') : 'S';
+    q.numero = q.parte === 'supuesto' ? `S${q.sup}·${q.supPos}` : String(parseInt((q.id.match(/(\d+)$/) || [, ''])[1], 10) || q.id);
+    res.questions.push(q);
+  }
+  return res;
+}
+
+/* Reservas que sustituyen a anuladas: en orden, dentro de su bloque
+   (común con común, específica con específica, cada supuesto con el suyo). */
+function markSubstitutes(qs) {
+  const byId = (a, b) => collator.compare(a.id, b.id);
+  for (const blk of ['C', 'T']) {
+    const anuladas = qs.filter(q => !q.reserva && q.bloque === blk && q.anulada).length;
+    qs.filter(q => q.parte === 'reserva' && q.bloque === blk && !q.anulada).sort(byId).slice(0, anuladas).forEach(q => q.sustituye = true);
+  }
+  const sups = new Set(qs.filter(q => q.parte === 'supuesto').map(q => q.sup));
+  for (const s of sups) {
+    const its = qs.filter(q => q.parte === 'supuesto' && q.sup === s);
+    const anuladas = its.filter(q => !q.reserva && q.anulada).length;
+    its.filter(q => q.reserva && !q.anulada).sort((a, b) => a.supPos - b.supPos).slice(0, anuladas).forEach(q => q.sustituye = true);
+  }
+}
+
+/* *_supuestos.md → {número: {enunciado (markdown)}} */
+function parseSupuestosMD(text) {
+  text = text.replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  const out = {}, parts = text.split(/^##[ \t]+Supuesto[ \t]+(\d+)[ \t]*$/m);
+  for (let i = 1; i < parts.length; i += 2) {
+    const body = parts[i + 1] || '';
+    const m = body.match(/^###[ \t]+Enunciado completo[ \t]*\n([\s\S]*?)(?=^###[ \t]|(?![\s\S]))/m);
+    if (m && m[1].trim()) out[+parts[i]] = {enunciado: m[1].trim()};
+  }
+  return out;
+}
+
+/* Markdown mínimo y seguro (se escapa todo antes): párrafos, listas anidadas, tablas, negrita, código y enlaces */
+function mdToHtml(src) {
+  const lines = src.split('\n'), out = [];
+  for (let i = 0; i < lines.length; i++) {
+    // Tablas: líneas seguidas que empiezan por «|»; la segunda puede ser la separadora «|---|---|»
+    if (/^\s*\|/.test(lines[i])) {
+      const rows = [];
+      while (i < lines.length && /^\s*\|/.test(lines[i])) rows.push(lines[i++]);
+      i--;
+      out.push({table: rows});
+    } else out.push(lines[i]);
+  }
+  return mdBlocks(out);
+}
+function mdTable(rows, inline) {
+  const cells = r => r.trim().replace(/^\|/, '').replace(/\|$/, '').split(/(?<!\\)\|/).map(c => c.trim().replace(/\\\|/g, '|'));
+  const sep = rows.length > 1 && /^\s*\|?\s*:?-{3,}/.test(rows[1]);
+  const head = sep ? cells(rows[0]) : null, body = (sep ? rows.slice(2) : rows).map(cells);
+  const align = sep ? cells(rows[1]).map(c => /^:-+:$/.test(c) ? 'center' : /-:$/.test(c) ? 'right' : '') : [];
+  const td = (tag, c, j) => `<${tag}${align[j] ? ` style="text-align:${align[j]}"` : ''}>${inline(c)}</${tag}>`;
+  return `<div class="tbl" tabindex="0"><table>${head ? `<thead><tr>${head.map((c, j) => td('th', c, j)).join('')}</tr></thead>` : ''}<tbody>${body.map(r => `<tr>${r.map((c, j) => td('td', c, j)).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function mdBlocks(src) {
+  const inline = s => esc(s)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  let html = '', para = []; const stack = [];
+  const flush = () => { if (para.length) { html += '<p>' + inline(para.join(' ')) + '</p>'; para = []; } };
+  const closeTo = ind => { while (stack.length && stack[stack.length - 1].ind > ind) html += '</li></' + stack.pop().type + '>'; };
+  for (const raw of src) {
+    if (raw.table) { flush(); closeTo(-1); html += mdTable(raw.table, inline); continue; }
+    const li = raw.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+    if (li) {
+      flush();
+      const ind = li[1].replace(/\t/g, '    ').length, type = /\d/.test(li[2]) ? 'ol' : 'ul';
+      const open = () => { html += `<${type}${type === 'ol' ? ` start="${parseInt(li[2], 10)}"` : ''}><li>`; stack.push({type, ind}); };
+      const top = stack[stack.length - 1];
+      if (!top || ind > top.ind) open();
+      else {
+        closeTo(ind); const t = stack[stack.length - 1];
+        if (t && t.ind === ind && t.type === type) html += '</li><li>';
+        else { if (t && t.ind === ind) html += '</li></' + stack.pop().type + '>'; open(); }
+      }
+      html += inline(li[3]); continue;
+    }
+    if (!raw.trim()) { flush(); continue; }
+    const h = raw.match(/^#{1,6}\s+(.*)$/);
+    if (h) { flush(); closeTo(-1); html += `<h4>${inline(h[1])}</h4>`; continue; }
+    if (stack.length && /^\s+/.test(raw)) { html += ' ' + inline(raw.trim()); continue; }
+    closeTo(-1); para.push(raw.trim());
+  }
+  flush(); closeTo(-1);
+  return html;
+}
+
+/* Biblioteca: se reconstruye desde el texto guardado de cada banco */
+let LIB = {banks: [], byId: new Map()};
+/* Huella de contenido: dos preguntas con el mismo texto, opciones y respuesta son la misma pregunta
+   (p. ej. la específica compartida por el turno libre y el de promoción interna con ids distintos).
+   En los supuestos cuenta también el enunciado, porque la misma pregunta puede depender de él. */
+const normTxt = s => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+const huella = (q, enunciado) => [q.parte === 'supuesto' ? 'S' : 'P', q.pregunta, q.A, q.B, q.C, q.n === 4 ? q.D : '', q.oficial, q.parte === 'supuesto' ? enunciado : ''].map(normTxt).join('\u0001');
+
+function buildLibrary() {
+  const raw = store.get(K.bancos, {});
+  const banks = [], byId = new Map(), byHuella = new Map();
+  // Se procesan antes los de turno libre: si una pregunta está repetida, se queda la copia del libre
+  const entries = Object.entries(raw).sort((a, b) => (bankMeta(a[0]).turno !== 'L') - (bankMeta(b[0]).turno !== 'L') || (a[1].loadedAt || 0) - (b[1].loadedAt || 0));
+  let migrado = false;
+  for (const [prefix, r] of entries) {
+    const b = {prefix, ...bankMeta(prefix), enabled: r.enabled !== false, loadedAt: r.loadedAt || 0, fileCsv: r.fileCsv, fileMd: r.fileMd,
+      hasCsv: !!r.csv, hasMd: !!r.md, sup: r.md ? parseSupuestosMD(r.md) : {}, questions: [], invalid: [], warnings: [], dups: [], twins: []};
+    if (r.csv) {
+      const p = parseBankCSV(prefix, r.csv);
+      b.fatal = p.fatal; b.invalid = p.invalid; b.warnings = p.warnings;
+      b.supEnCsv = new Set(p.questions.filter(q => q.parte === 'supuesto').map(q => q.sup));   // incluidas las repetidas
+      for (const q of p.questions) {
+        if (byId.has(q.id)) { b.dups.push({id: q.id, owner: byId.get(q.id).bank}); continue; }   // el duplicado se ignora
+        const h = huella(q, q.parte === 'supuesto' ? b.sup[q.sup]?.enunciado : '');
+        const igual = byHuella.get(h);
+        // Se descarta la copia, salvo que el banco de la primera esté desactivado y este no
+        if (igual && (bankByPrefixIn(banks, igual.bank)?.enabled || !b.enabled)) {
+          b.twins.push({id: q.id, owner: igual.id});
+          // Si ya habías respondido esta copia y la buena no tiene historial, se lleva el historial
+          if (P.q[q.id] && !P.q[igual.id]) { P.q[igual.id] = P.q[q.id]; migrado = true; }
+          continue;
+        }
+        byId.set(q.id, q); b.questions.push(q);
+        if (!igual) byHuella.set(h, q);
+      }
+      markSubstitutes(b.questions);
+    }
+    bankStats(b); banks.push(b);
+  }
+  banks.sort((a, b) => a.loadedAt - b.loadedAt);
+  LIB = {banks, byId};
+  if (migrado) saveProgress();
+}
+const bankByPrefixIn = (list, p) => list.find(b => b.prefix === p);
+/* «67 preguntas son idénticas a las de 2024 · MPT (L)…» */
+function twinsTxt(b) {
+  const por = {};
+  b.twins.forEach(t => { const o = LIB.byId.get(t.owner)?.bank || '?'; por[o] = (por[o] || 0) + 1; });
+  const de = Object.entries(por).map(([p, n]) => { const ob = bankByPrefix(p); return `${n} de ${ob ? `${esc(bankName(ob))} (${ob.turno})` : esc(p)}`; }).join(', ');
+  return `<b>${plural(b.twins.length, 'pregunta es idéntica', 'preguntas son idénticas')}</b> a otras ya cargadas (${de}): es el mismo examen con otro id. Se usan una sola vez, para que no se repitan en los tests ni en el simulacro.`;
+}
+function bankStats(b) {
+  const qs = b.questions, cnt = f => qs.filter(f).length;
+  b.count = {comun: cnt(q => q.parte === 'comun'), especifica: cnt(q => q.parte === 'especifica'), reserva: cnt(q => q.parte === 'reserva'),
+    supuesto: cnt(q => q.parte === 'supuesto'), dudosa: cnt(q => q.estado === 'DUDOSA'), desactualizada: cnt(q => q.estado === 'DESACTUALIZADA'),
+    anulada: cnt(q => q.anulada), fuera: cnt(q => q.fuera)};
+  b.supNums = [...new Set(qs.filter(q => q.parte === 'supuesto').map(q => q.sup))].sort((a, b) => a - b);
+  b.supSinEnunciado = b.supNums.filter(n => !b.sup[n]);
+  b.enunciadoSinPreguntas = Object.keys(b.sup).map(Number).filter(n => !(b.supEnCsv || new Set()).has(n));
+  const ns = new Set(qs.map(q => q.n));
+  b.formato = !qs.length ? null : ns.size === 1 ? [...ns][0] : 'mixto';
+}
+const bankByPrefix = p => LIB.banks.find(b => b.prefix === p);
+const enabledBanks = () => LIB.banks.filter(b => b.enabled && b.questions.length);
+const supuestoDe = q => q.parte === 'supuesto' ? bankByPrefix(q.bank)?.sup[q.sup] : null;
+const supTitulo = (q) => { const s = supuestoDe(q); const first = s ? s.enunciado.split('\n').find(l => l.trim()) : ''; return first ? first.replace(/[*#`]/g, '').slice(0, 70) + (first.length > 70 ? '…' : '') : ''; };
+
+/* ==========================================================================
+   4. PUNTUACIÓN — función aislada y probada (también desde Node: tests/)
+   ========================================================================== */
+/* @@PUNTUACION-INICIO */
+/**
+ * Puntúa un bloque de preguntas.
+ * @param {{marcada: (string|null), oficial: string}[]} respuestas
+ * @param {number} valor  puntos por acierto (0,5 en la parte 1, 3 en la parte 2, 1 en práctica)
+ * Cada fallo resta 1/3 del valor de un acierto; los blancos no restan; las ANULADAS no cuentan.
+ */
+function puntuar(respuestas, valor = 1) {
+  let aciertos = 0, fallos = 0, blancos = 0, anuladas = 0;
+  for (const r of respuestas) {
+    if (r.oficial === 'ANULADA') { anuladas++; continue; }
+    if (!r.marcada) blancos++;
+    else if (r.marcada === r.oficial) aciertos++;
+    else fallos++;
+  }
+  const puntuables = aciertos + fallos + blancos;
+  const netos = aciertos - fallos / 3;
+  return {aciertos, fallos, blancos, anuladas, puntuables, netos, puntos: netos * valor, maximo: puntuables * valor};
+}
+
+/**
+ * Resultado de un simulacro.
+ * Parte 1 = común + específica (0,5 por pregunta); parte 2 = supuestos (3 por pregunta).
+ * Mínimos: la mitad del máximo de cada parte (20/40 y 30/60) y la mitad del total (50/100).
+ * La parte 2 solo se suma si se aprueba la parte 1.
+ */
+function resultadoSimulacro({comun = [], especifica = [], supuestos = []}) {
+  const EPS = 1e-9;
+  const c = puntuar(comun, 0.5), e = puntuar(especifica, 0.5);
+  const s = supuestos.map(x => puntuar(x, 3));
+  const p1 = {puntos: c.puntos + e.puntos, maximo: c.maximo + e.maximo};
+  p1.minimo = p1.maximo / 2;
+  p1.existe = p1.maximo > 0;                       // un simulacro reducido podría no tener parte 1
+  p1.aprobada = !p1.existe || p1.puntos >= p1.minimo - EPS;
+  const p2 = {puntos: s.reduce((a, x) => a + x.puntos, 0), maximo: s.reduce((a, x) => a + x.maximo, 0)};
+  p2.minimo = p2.maximo / 2;
+  p2.existe = p2.maximo > 0;
+  p2.aprobada = !p2.existe || p2.puntos >= p2.minimo - EPS;
+  p2.computa = p1.aprobada && p2.existe;
+  const maximo = p1.maximo + p2.maximo;
+  const total = p1.puntos + (p2.computa ? p2.puntos : 0);
+  const minimoTotal = maximo / 2;
+  const apto = p1.aprobada && p2.aprobada && total >= minimoTotal - EPS;
+  return {comun: c, especifica: e, supuestos: s, p1, p2, total, maximo, minimoTotal, apto};
+}
+
+/* Casos de prueba de la puntuación (los ejecuta Progreso › Datos y tests/puntuacion.test.mjs) */
+function probarPuntuacion() {
+  const rep = (n, marcada, oficial = 'A') => Array.from({length: n}, () => ({marcada, oficial}));
+  const mezcla = (a, f, b) => [...rep(a, 'A'), ...rep(f, 'B'), ...rep(b, null)];
+  const anulada = m => ({marcada: m, oficial: 'ANULADA'});
+  const sim = (comun, especifica, supuestos) => () => {
+    const r = resultadoSimulacro({comun, especifica, supuestos});
+    return {p1: r.p1.puntos, p2: r.p2.puntos, total: r.total, apto: r.apto, computa: r.p2.computa};
+  };
+  const casos = [
+    {nombre: 'Todo bien: 40 + 60 = 100, apto', calc: sim(rep(40, 'A'), rep(40, 'A'), [rep(10, 'A'), rep(10, 'A')]),
+      espera: {p1: 40, p2: 60, total: 100, apto: true, computa: true}},
+    {nombre: 'Todo mal: cada fallo resta 1/3; la parte 2 no computa', calc: sim(rep(40, 'B'), rep(40, 'B'), [rep(10, 'B'), rep(10, 'B')]),
+      espera: {p1: -40 / 3, p2: -20, total: -40 / 3, apto: false, computa: false}},
+    {nombre: 'Todo en blanco: 0 puntos, no resta', calc: sim(rep(40, null), rep(40, null), [rep(10, null), rep(10, null)]),
+      espera: {p1: 0, p2: 0, total: 0, apto: false, computa: false}},
+    {nombre: 'Mezcla de aciertos, fallos y blancos: 23 + 34 = 57, apto', calc: sim(mezcla(28, 8, 4), mezcla(24, 10, 6), [mezcla(7, 2, 1), mezcla(6, 3, 1)]),
+      espera: {p1: 23, p2: 34, total: 57, apto: true, computa: true}},
+    {nombre: 'Con anuladas: no puntúan ni restan aunque se marquen', calc: sim([...mezcla(28, 8, 4), anulada('B')], [...mezcla(24, 10, 6), anulada(null)], [[...mezcla(7, 2, 1), anulada('A')], mezcla(6, 3, 1)]),
+      espera: {p1: 23, p2: 34, total: 57, apto: true, computa: true}},
+    {nombre: 'Bloque de práctica con anuladas: 3 ✓, 3 ✗, 1 blanco, 2 anuladas = 2 netos', calc: () => { const r = puntuar([...mezcla(3, 3, 1), anulada('A'), anulada(null)], 1); return {aciertos: r.aciertos, fallos: r.fallos, blancos: r.blancos, anuladas: r.anuladas, puntos: r.puntos, maximo: r.maximo}; },
+      espera: {aciertos: 3, fallos: 3, blancos: 1, anuladas: 2, puntos: 2, maximo: 7}},
+    {nombre: 'Parte 1 suspendida: la parte 2 no se suma', calc: sim(mezcla(15, 20, 5), mezcla(15, 20, 5), [rep(10, 'A'), rep(10, 'A')]),
+      espera: {p1: 25 / 3, p2: 60, total: 25 / 3, apto: false, computa: false}},
+    {nombre: 'Total de 64 pero parte 2 bajo el mínimo: no apto', calc: sim(rep(40, 'A'), rep(40, 'A'), [mezcla(4, 0, 6), mezcla(4, 0, 6)]),
+      espera: {p1: 40, p2: 24, total: 64, apto: false, computa: true}},
+    {nombre: 'Justo en los mínimos (20, 30 y 50): apto', calc: sim(mezcla(20, 0, 20), mezcla(20, 0, 20), [mezcla(5, 0, 5), mezcla(5, 0, 5)]),
+      espera: {p1: 20, p2: 30, total: 50, apto: true, computa: true}}
+  ];
+  return casos.map(c => {
+    const got = c.calc(), fallos = [];
+    for (const [k, v] of Object.entries(c.espera)) {
+      const ok = typeof v === 'number' ? Math.abs(got[k] - v) < 1e-6 : got[k] === v;
+      if (!ok) fallos.push(`${k}: esperaba ${v}, salió ${got[k]}`);
+    }
+    return {nombre: c.nombre, ok: !fallos.length, fallos};
+  });
+}
+/* @@PUNTUACION-FIN */
+
+/* ==========================================================================
+   4b. INFORME DE FALLOS — datos y Markdown, sin tocar la pantalla
+       (también desde Node: tests/informe.test.mjs)
+   ========================================================================== */
+/* @@INFORME-INICIO */
+const INF_MIN_RESP = 5;                  // con menos respuestas, el % de un tema todavía no dice nada
+/**
+ * Reúne los fallos: aciertos por tema y epígrafe, y las preguntas que entran en el informe.
+ * @param {object[]} preguntas  las de los bancos activos
+ * @param {object} hist  historial por id de pregunta (P.q)
+ * @param {{alcance?: ('repaso'|'todas'), dudas?: boolean, temas?: string[]}} op
+ *   «repaso»: las que están ahora en tu repaso; «todas»: las que has fallado alguna vez.
+ *   dudas: incluir las que solo marcaste con «estaba dudando». temas vacío = todos.
+ */
+function informeFallos(preguntas, hist, {alcance = 'repaso', dudas = true, temas = []} = {}) {
+  const nuevo = extra => ({...extra, total: 0, vistas: 0, n: 0, ok: 0, ko: 0, fallos: 0});
+  const porTema = new Map(), porEp = new Map(), lista = [], tot = nuevo({});
+  for (const q of preguntas) {
+    if (q.anulada || (temas.length && !temas.includes(q.tema))) continue;
+    const e = hist[q.id] || {}, kEp = q.tema + '\u0001' + q.epigrafe;
+    if (!porTema.has(q.tema)) porTema.set(q.tema, nuevo({tema: q.tema}));
+    if (!porEp.has(kEp)) porEp.set(kEp, nuevo({tema: q.tema, epigrafe: q.epigrafe}));
+    const soloDuda = e.dud && !e.ko;
+    const entra = !!(alcance === 'repaso' ? e.rev : e.ko > 0 || e.dud) && (dudas || !soloDuda);
+    for (const s of [tot, porTema.get(q.tema), porEp.get(kEp)]) {
+      s.total++;
+      if (e.n) { s.vistas++; s.n += e.n; s.ok += e.ok; s.ko += e.ko; }
+      if (entra) s.fallos++;
+    }
+    if (entra) lista.push({q, e});
+  }
+  const conPct = s => ({...s, pct: s.n ? s.ok / s.n * 100 : null});
+  const porTemaOrden = (a, b) => temaOrden(a.tema) - temaOrden(b.tema);
+  const temasL = [...porTema.values()].map(conPct);
+  // Epígrafes: más preguntas falladas primero; a igualdad, menos aciertos
+  const epigrafes = [...porEp.values()].filter(s => s.fallos).map(conPct)
+    .sort((a, b) => b.fallos - a.fallos || (a.pct ?? 101) - (b.pct ?? 101) || porTemaOrden(a, b) || collator.compare(a.epigrafe, b.epigrafe));
+  const sups = new Map();
+  for (const x of lista.filter(x => x.q.parte === 'supuesto').sort((a, b) => collator.compare(a.q.id, b.q.id))) {
+    const k = x.q.bank + '#' + x.q.sup;
+    if (!sups.has(k)) sups.set(k, {bank: x.q.bank, sup: x.q.sup, items: []});
+    sups.get(k).items.push(x);
+  }
+  return {
+    op: {alcance, dudas, temas: [...temas]},
+    resumen: conPct(tot),
+    temas: temasL.filter(t => t.n >= INF_MIN_RESP).sort((a, b) => a.pct - b.pct || b.fallos - a.fallos || porTemaOrden(a, b)),
+    pocos: temasL.filter(t => t.n && t.n < INF_MIN_RESP).sort(porTemaOrden),
+    sinPracticar: temasL.filter(t => !t.n).sort(porTemaOrden).map(t => t.tema),
+    epigrafes,
+    prioridad: epigrafes.slice(0, 5),
+    preguntas: lista.filter(x => x.q.parte !== 'supuesto')
+      .sort((a, b) => temaOrden(a.q.tema) - temaOrden(b.q.tema) || collator.compare(a.q.epigrafe, b.q.epigrafe) || b.e.ko - a.e.ko || collator.compare(a.q.id, b.q.id)),
+    supuestos: [...sups.values()]
+  };
+}
+const infFecha = t => new Date(t).toLocaleDateString('es-ES', {day: 'numeric', month: 'short', year: 'numeric'});
+const infTema = t => t === FDT ? 'Fuera de temario' : t;
+/* «Fallada 2 · acertada 1 · último fallo 3 oct 2026 · en repaso…» (lo usan el .md y la pantalla) */
+function infHistorial(e) {
+  return [`fallada ${e.ko || 0}`, `acertada ${e.ok || 0}`, e.bl && `en blanco ${e.bl}`, e.lastKo && `último fallo el ${infFecha(e.lastKo)}`,
+    e.rev && 'en el repaso', e.dud && 'marcada «estaba dudando»'].filter(Boolean).join(' · ');
+}
+const infUna = s => String(s ?? '').trim().replace(/\s*\n\s*/g, ' ');
+const infVarias = s => String(s ?? '').trim().replace(/[ \t]*\n/g, '  \n');      // saltos de línea duros en Markdown
+const infMia = (q, e) => e.marcada && e.marcada !== q.oficial ? e.marcada : null;   // la opción fallada, si consta
+const infFiltroTxt = op => `${op.alcance === 'todas' ? 'todas las preguntas que he fallado alguna vez' : 'las preguntas que tengo ahora en el repaso'}${op.dudas ? ', también las que marqué con «estaba dudando»' : ', sin las que solo marqué con «estaba dudando»'} · ${op.temas.length ? `solo ${op.temas.length === 1 ? 'el tema' : 'los temas'} ${op.temas.map(infTema).join(', ')}` : 'todos los temas'}`;
+/**
+ * El informe en Markdown. Está pensado para dárselo a una IA que te ayude a repasar,
+ * así que cada pregunta va completa: opciones, oficial, la tuya, estado, nota y fuente.
+ * @param ctx  {fecha, dias: días para el examen, banco: prefijo → nombre, enunciado: pregunta → texto del supuesto}
+ */
+function informeMD(inf, {fecha = new Date(), dias = null, banco = p => p, enunciado = () => ''} = {}) {
+  const una = infUna, varias = infVarias, celda = s => una(s).replace(/\|/g, '\\|');
+  const p0 = v => v == null ? '—' : `${Math.round(v)} %`;
+  const r = inf.resumen, nSup = inf.supuestos.reduce((a, s) => a + s.items.length, 0), L = [];
+  let k = 0;
+  const pregunta = ({q, e}) => {
+    const mia = infMia(q, e);
+    L.push(`**${++k}.** ${varias(q.pregunta)}`, '');
+    for (const x of q.n === 3 ? ['A','B','C'] : ['A','B','C','D'])
+      L.push(`- ${x}) ${una(q[x])}${x === q.oficial ? ' ✅ **correcta**' : ''}${x === mia ? ' ❌ **la que marqué**' : ''}`);
+    const datos = [
+      !e.ko ? 'Mi respuesta: la acerté, pero estaba dudando.' : !mia ? 'Mi respuesta: no consta cuál marqué (fallo anterior a que la app lo guardara).'
+        : `Mi respuesta: marqué la ${mia} (incorrecta); la correcta es la ${q.oficial}.`,
+      `Historial: ${infHistorial(e)}.`,
+      q.estado !== 'VIGENTE' && `Estado: ${q.estado}${q.actual.trim() ? `. Respuesta actual: ${una(q.actual)}` : ''}.`,
+      q.nota.trim() && `Nota: ${una(q.nota)}`,
+      q.fuente.trim() && `Fuente: ${una(q.fuente)}`,
+      `Origen: ${banco(q.bank)}, pregunta n.º ${q.numero} · ${infTema(q.tema)}${q.epigrafe ? ` · ${una(q.epigrafe)}` : ''} · id ${q.id}`
+    ].filter(Boolean);
+    L.push('', datos.join('  \n'), '');
+  };
+
+  L.push('# Informe de fallos', '',
+    `Generado el ${infFecha(fecha)}${dias != null && dias >= 0 ? ` · ${dias === 0 ? 'hoy es el examen' : `faltan ${plural(dias, 'día', 'días')} para el examen`}` : ''}.`, '',
+    '## Instrucciones para la IA', '',
+    'Estoy preparando una oposición y este es el informe de mis fallos en tests de exámenes oficiales anteriores. Ayúdame a repasar con él:', '',
+    '1. Empieza por el «Orden de estudio sugerido»: son los epígrafes donde más fallo.',
+    '2. De cada pregunta fallada, explícame por qué la respuesta correcta es la buena y por qué la que marqué no lo es. Apóyate en la norma (ley y artículo) y en la fuente que acompaña a la pregunta.',
+    '3. Después ponme a prueba con preguntas nuevas del mismo epígrafe y con el mismo formato que las del informe (3 o 4 opciones, solo una correcta). Hazlas de una en una y espera mi respuesta antes de corregir.',
+    '4. Si una pregunta está marcada como DESACTUALIZADA, la que vale hoy es la «respuesta actual», no la oficial del examen. Si está marcada como DUDOSA, la respuesta oficial es discutible: explícame por qué.',
+    '5. No inventes normas, artículos ni datos. Si no estás seguro de algo, dilo.', '',
+    'Formato del examen: la parte 1 son 40 preguntas del temario común (C1–C8) y 40 del específico (T1–T14) en 80 minutos; la parte 2, dos supuestos prácticos de 10 preguntas en 70 minutos. Cada fallo resta 1/3 de un acierto y las respuestas en blanco no restan.', '',
+    '## Resumen', '',
+    `- Incluye ${infFiltroTxt(inf.op)}.`,
+    `- Preguntas en mis bancos: ${r.total} · vistas: ${r.vistas} (${pct(r.vistas, r.total)} %).`,
+    `- Respuestas dadas: ${r.n} · aciertos: ${p0(r.pct)} · fallos: ${r.ko}.`,
+    `- Preguntas en este informe: ${r.fallos}${nSup ? ` (${nSup} de supuestos prácticos)` : ''}.`, '');
+
+  if (inf.prioridad.length) {
+    L.push('## Orden de estudio sugerido', '', 'Los epígrafes con más preguntas falladas; a igualdad, el de menos aciertos.', '');
+    inf.prioridad.forEach((s, i) => L.push(`${i + 1}. **${infTema(s.tema)}** · ${una(s.epigrafe) || 'sin epígrafe'} — ${plural(s.fallos, 'pregunta fallada', 'preguntas falladas')} · ${p0(s.pct)} de aciertos en ${plural(s.n, 'respuesta', 'respuestas')}`));
+    L.push('');
+  }
+  L.push('## Temas, de peor a mejor', '');
+  if (inf.temas.length) {
+    L.push('| Tema | Aciertos | Respuestas | Preguntas vistas | En este informe |', '|---|---:|---:|---:|---:|');
+    inf.temas.forEach(t => L.push(`| ${infTema(t.tema)} | ${p0(t.pct)} | ${t.n} | ${t.vistas} de ${t.total} | ${t.fallos} |`));
+  } else L.push(`Aún ningún tema tiene ${INF_MIN_RESP} respuestas o más.`);
+  if (inf.pocos.length) L.push('', `Con pocas respuestas todavía (menos de ${INF_MIN_RESP}): ${inf.pocos.map(t => `${infTema(t.tema)} (${p0(t.pct)} en ${t.n})`).join(', ')}.`);
+  if (inf.sinPracticar.length) L.push('', `Sin practicar todavía: ${inf.sinPracticar.map(infTema).join(', ')}.`);
+  L.push('');
+  if (inf.epigrafes.length) {
+    L.push('## Epígrafes con fallos', '', '| Tema | Epígrafe | Preguntas falladas | Aciertos |', '|---|---|---:|---:|');
+    inf.epigrafes.forEach(s => L.push(`| ${infTema(s.tema)} | ${celda(s.epigrafe) || '—'} | ${s.fallos} | ${p0(s.pct)} en ${s.n} |`));
+    L.push('');
+  }
+  if (inf.preguntas.length) {
+    L.push('## Preguntas falladas', '');
+    let grupo = null;
+    for (const x of inf.preguntas) {
+      const g = x.q.tema + '\u0001' + x.q.epigrafe;
+      if (g !== grupo) { L.push(`### ${infTema(x.q.tema)} · ${una(x.q.epigrafe) || 'sin epígrafe'}`, ''); grupo = g; }
+      pregunta(x);
+    }
+  }
+  if (inf.supuestos.length) {
+    L.push('## Supuestos prácticos', '');
+    for (const s of inf.supuestos) {
+      const txt = enunciado(s.items[0].q).trim();
+      L.push(`### ${banco(s.bank)} · Supuesto ${s.sup}`, '', '**Enunciado:**', '',
+        txt ? txt.split('\n').map(l => l.trim() ? '> ' + l : '>').join('\n') : '_No está cargado el enunciado de este supuesto._', '');
+      s.items.forEach(pregunta);
+    }
+  }
+  if (!r.fallos) L.push('No hay preguntas falladas con este filtro.', '');
+  return L.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+/** Versión breve: solo cada pregunta, la opción correcta y la que marqué. */
+function informeMDBreve(inf, {fecha = new Date(), banco = p => p} = {}) {
+  const L = [];
+  let k = 0;
+  const pregunta = ({q, e}) => {
+    const mia = infMia(q, e);
+    L.push(`**${++k}.** ${infVarias(q.pregunta)}`, '', `- ✅ Correcta: ${q.oficial}) ${infUna(q[q.oficial])}`,
+      !e.ko ? '- 🤔 Marqué la correcta, pero estaba dudando' : mia ? `- ❌ Marqué: ${mia}) ${infUna(q[mia])}` : '- ❌ Marqué: no consta (fallo anterior a que la app lo guardara)');
+    if (q.estado === 'DESACTUALIZADA') L.push(`- ⚠️ Desactualizada${q.actual.trim() ? `: hoy la respuesta es ${infUna(q.actual)}` : ''}`);
+    L.push('');
+  };
+  L.push('# Preguntas falladas', '', `Generado el ${infFecha(fecha)} · incluye ${infFiltroTxt(inf.op)}.`, '');
+  let grupo = null;
+  for (const x of inf.preguntas) {
+    const g = x.q.tema + '\u0001' + x.q.epigrafe;
+    if (g !== grupo) { L.push(`## ${infTema(x.q.tema)} · ${infUna(x.q.epigrafe) || 'sin epígrafe'}`, ''); grupo = g; }
+    pregunta(x);
+  }
+  for (const s of inf.supuestos) { L.push(`## Supuesto ${s.sup} · ${banco(s.bank)}`, ''); s.items.forEach(pregunta); }
+  if (!inf.resumen.fallos) L.push('No hay preguntas falladas con este filtro.', '');
+  return L.join('\n').replace(/\n{3,}/g, '\n\n');
+}
+/* @@INFORME-FIN */
+
+/* ==========================================================================
+   5. PROGRESO (por id de pregunta) Y PREFERENCIAS
+   ========================================================================== */
+function loadProgress() {
+  const p = store.get(K.progreso, null) || {};
+  return {v: 1, q: p.q || {}, days: p.days || {}, sims: p.sims || []};
+}
+let P = loadProgress();
+const UI_DEF = {filters: {fuera: false, reservas: false, sinDudosas: false},
+  practica: {temas: [], sinBancos: [], n: 20, orden: 'aleatorio', inmediata: true, supuestos: false},
+  repaso: {inmediata: true}, informe: {alcance: 'repaso', dudas: true, temas: [], formato: 'completo'}, goal: 20, staggerDay: '', tema: 'auto'};
+function loadUI() {
+  const u = store.get(K.ui, {}) || {};
+  return {...UI_DEF, ...u, filters: {...UI_DEF.filters, ...(u.filters || {})}, practica: {...UI_DEF.practica, ...(u.practica || {})}, repaso: {...UI_DEF.repaso, ...(u.repaso || {})},
+    informe: {...UI_DEF.informe, ...(u.informe || {})}};
+}
+let UI = loadUI();
+const saveUI = () => store.set(K.ui, UI);
+function saveProgress() { if (!store.set(K.progreso, P)) render(); }
+
+/* Tema: automático (sigue al sistema), claro u oscuro. Se cambia con el botón de arriba o en Progreso › Datos. */
+const TEMAS_UI = {
+  auto: {txt: 'Automático', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>'},
+  light: {txt: 'Claro', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'},
+  dark: {txt: 'Oscuro', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg>'}
+};
+function applyTheme() {
+  const t = TEMAS_UI[UI.tema] ? UI.tema : 'auto', root = document.documentElement;
+  if (t === 'auto') delete root.dataset.theme; else root.dataset.theme = t;
+  // Barra del navegador en móvil: mismo color que el fondo del tema elegido
+  $$('meta[name=theme-color]').forEach(m => {
+    const own = m.media.includes('dark') ? 'dark' : 'light';
+    m.content = (t === 'auto' ? own : t) === 'dark' ? '#121211' : '#eeebe5';
+  });
+  const b = $('#themeBtn'), sig = {auto: 'light', light: 'dark', dark: 'auto'}[t];
+  b.innerHTML = `${TEMAS_UI[t].icon}<span>${TEMAS_UI[t].txt}</span>`;
+  b.setAttribute('aria-label', `Tema: ${TEMAS_UI[t].txt.toLowerCase()}. Pulsa para pasar a ${TEMAS_UI[sig].txt.toLowerCase()}`);
+  b.title = `Tema ${TEMAS_UI[t].txt.toLowerCase()} · pulsa para ${TEMAS_UI[sig].txt.toLowerCase()}`;
+}
+function setTheme(t) { UI.tema = t; saveUI(); applyTheme(); }
+
+const qp = id => P.q[id] || (P.q[id] = {n: 0, ok: 0, ko: 0, bl: 0, racha: 0});
+/* Apunta un intento. Una pregunta entra en el repaso al fallarla y sale al acertarla 2 veces seguidas.
+   «marca» es la opción elegida: de los fallos se guarda la última (sale en el informe de fallos). */
+function record(id, res, marca = null) {
+  const e = qp(id), now = Date.now(), ev = {};
+  e.n++; e.last = now;
+  if (res === 'ok') { e.ok++; e.racha++; if (e.rev && e.racha >= 2) { e.rev = false; ev.sale = true; } }
+  else if (res === 'ko') { e.ko++; e.racha = 0; if (!e.rev) ev.entra = true; e.rev = true; e.lastKo = now; if (marca) e.marcada = marca; }
+  else { e.bl++; e.racha = 0; }
+  const d = dayKey(), antes = P.days[d] || 0;
+  P.days[d] = antes + 1;
+  if (!antes) ev.primeraHoy = true;
+  if (antes + 1 === UI.goal) ev.objetivo = true;
+  return ev;
+}
+/* «Estaba dudando»: la pregunta vuelve al repaso aunque la acertaras. Se puede deshacer. */
+function setDoubt(id, on) {
+  const e = qp(id);
+  if (on && !e.dud) { e.dud = true; e.revAntes = !!e.rev; e.rachaAntes = e.racha; e.rev = true; e.racha = 0; }
+  else if (!on && e.dud) { e.dud = false; if ('revAntes' in e) { e.rev = e.revAntes; e.racha = e.rachaAntes || 0; delete e.revAntes; delete e.rachaAntes; } }
+  saveProgress();
+}
+function streak() {
+  const d = new Date(); let n = 0;
+  if (!P.days[dayKey(d)]) d.setDate(d.getDate() - 1);                  // la racha sigue viva hasta medianoche
+  while (P.days[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
+function bestStreak() {
+  const keys = Object.keys(P.days).filter(k => P.days[k] > 0).sort(); let best = 0, run = 0, prev = null;
+  for (const k of keys) { const t = new Date(k + 'T12:00:00').getTime(); run = prev && Math.round((t - prev) / DIA) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = t; }
+  return best;
+}
+function reviewIds(kind = 'all') {
+  const lim = Date.now() - 3 * DIA, ids = [];
+  for (const [id, e] of Object.entries(P.q)) {
+    if (!e.rev) continue;
+    const q = LIB.byId.get(id);
+    if (!q || q.anulada || !bankByPrefix(q.bank)?.enabled) continue;
+    if (kind === 'due' && (e.last || 0) > lim) continue;
+    ids.push(id);
+  }
+  return ids;
+}
+/* Aciertos por tema sumando todos los bancos activos */
+function temaStats() {
+  const m = {};
+  for (const t of TEMAS) m[t] = {tema: t, total: 0, vistas: 0, ok: 0, n: 0};
+  for (const b of enabledBanks()) for (const q of b.questions) {
+    if (q.anulada || !m[q.tema]) continue;
+    const s = m[q.tema], e = P.q[q.id];
+    s.total++;
+    if (e && e.n) { s.vistas++; s.ok += e.ok; s.n += e.n; }
+  }
+  return TEMAS.map(t => ({...m[t], pct: m[t].n ? m[t].ok / m[t].n * 100 : null}));
+}
+
+/* ==========================================================================
+   6. QUÉ PREGUNTAS ENTRAN (interruptores comunes)
+   ========================================================================== */
+function eligible(q, f = UI.filters) {
+  return !q.anulada
+    && (f.fuera || !q.fuera)
+    && (!f.sinDudosas || q.estado === 'VIGENTE')
+    && (!q.reserva || q.sustituye || f.reservas);
+}
+function practicePool(cfg = UI.practica, ignorarTemas = false) {
+  return enabledBanks().filter(b => !cfg.sinBancos.includes(b.prefix)).flatMap(b => b.questions)
+    .filter(q => eligible(q) && (cfg.supuestos || q.parte !== 'supuesto') && (ignorarTemas || cfg.temas.includes(q.tema)));
+}
+/* Simulacro oficial: solo bancos con 4 opciones en todas sus preguntas.
+   Los de promoción interna solo aportan específicas. */
+function simPlan() {
+  const rows = [], usable = [];
+  for (const b of LIB.banks.filter(b => b.questions.length || b.twins.length)) {
+    if (!b.enabled) rows.push({b, use: false, why: 'Desactivado en Bancos.'});
+    else if (!b.questions.length) rows.push({b, use: false, why: 'Sus preguntas son las mismas que las de otro banco cargado; ya entran desde ese, sin repetirse.'});
+    else if (b.formato !== 4) rows.push({b, use: false, why: b.formato === 3
+      ? 'Excluido automáticamente: tiene 3 opciones y el examen real tiene 4; mezclarlas falsearía la nota.'
+      : 'Excluido automáticamente: mezcla preguntas de 3 y 4 opciones.'});
+    else {
+      usable.push(b);
+      const sinEnun = b.supSinEnunciado.length ? ` Supuestos sin enunciado (no entran): ${b.supSinEnunciado.join(', ')}.` : '';
+      const rep = b.twins.length ? ` ${plural(b.twins.length, 'pregunta repetida de otro banco no cuenta', 'preguntas repetidas de otro banco no cuentan')} dos veces.` : '';
+      rows.push({b, use: true, why: (b.turno === 'L' ? 'Aporta común, específica y supuestos.' + sinEnun : 'Solo aporta preguntas específicas.') + rep});
+    }
+  }
+  const libres = usable.filter(b => b.turno === 'L');
+  const comun = libres.flatMap(b => b.questions.filter(q => q.bloque === 'C' && eligible(q)));
+  const esp = usable.flatMap(b => b.questions.filter(q => q.bloque === 'T' && eligible(q)));
+  const sups = [];
+  for (const b of libres) for (const n of b.supNums) {
+    if (!b.sup[n]) continue;
+    const qs = b.questions.filter(q => q.parte === 'supuesto' && q.sup === n && eligible(q)).sort((x, y) => (x.reserva - y.reserva) || x.supPos - y.supPos);
+    if (qs.length) sups.push({bank: b.prefix, n, qs});
+  }
+  const llenos = sups.filter(s => s.qs.length >= 10);
+  return {rows, comun, esp, sups, llenos, oficial: comun.length >= 40 && esp.length >= 40 && llenos.length >= 2,
+    faltan: {comun: Math.max(0, 40 - comun.length), esp: Math.max(0, 40 - esp.length), sups: Math.max(0, 2 - llenos.length)}};
+}
+
+/* ==========================================================================
+   7. SESIONES (práctica, repaso, simulacro)
+   ========================================================================== */
+let S = store.get(K.sesion, null);
+if (S && S.v !== 1) S = null;
+const saveSession = () => store.set(K.sesion, S);
+const curPart = () => S.parts[S.p];
+const curId = () => curPart().items[S.i];
+const letras = q => q.n === 3 ? ['A','B','C'] : ['A','B','C','D'];
+const byExamOrder = (a, b) => temaOrden(a.tema) - temaOrden(b.tema) || collator.compare(a.id, b.id);
+
+function newSession(o) {
+  return {v: 1, id: Date.now(), kind: o.kind, title: o.title, immediate: !!o.immediate, official: !!o.official,
+    parts: o.parts.map(p => ({...p, endAt: null, delivered: false})), p: 0, i: 0,
+    ans: {}, flags: {}, checked: {}, recorded: {}, run: 0, between: false, done: false, caseClosed: false, sheetOpen: false, startedAt: Date.now()};
+}
+function startSession(s) {
+  S = s;
+  const part = S.parts[0];
+  if (part.timeMin) part.endAt = Date.now() + part.timeMin * 60000;
+  saveSession(); go('sesion');
+}
+function startPractica() {
+  const cfg = UI.practica;
+  let pool = practicePool(cfg);
+  if (cfg.orden === 'aleatorio') pool = shuffle(pool);
+  else { const ord = new Map(LIB.banks.map((b, i) => [b.prefix, i])); pool.sort((a, b) => ord.get(a.bank) - ord.get(b.bank) || collator.compare(a.id, b.id)); }
+  const n = cfg.n > 0 ? Math.min(cfg.n, pool.length) : pool.length;
+  if (!n) return toast('!', 'No hay preguntas', 'Elige al menos un tema con preguntas');
+  const temas = [...new Set(pool.slice(0, n).map(q => q.fuera ? 'FdT' : q.tema))].sort((a, b) => temaOrden(a) - temaOrden(b));
+  startSession(newSession({kind: 'practica', title: 'Práctica · ' + (temas.length > 4 ? `${temas.length} temas` : temas.join(', ')), immediate: cfg.inmediata,
+    parts: [{key: 'p', title: 'Práctica', valor: 1, items: pool.slice(0, n).map(q => q.id)}]}));
+}
+function startRepaso(kind) {
+  const ids = shuffle(reviewIds(kind));
+  if (!ids.length) return toast('✓', 'Nada que repasar', kind === 'due' ? 'Ningún fallo lleva más de 3 días esperando' : 'No tienes fallos pendientes');
+  startSession(newSession({kind: 'repaso', title: kind === 'due' ? 'Repaso · más de 3 días' : 'Repaso · mis fallos', immediate: UI.repaso.inmediata,
+    parts: [{key: 'p', title: 'Repaso', valor: 1, items: ids}]}));
+}
+function startSimulacro(oficial) {
+  const plan = simPlan();
+  if (oficial && !plan.oficial) return;
+  const pick = (arr, n) => shuffle(arr).slice(0, n).sort(byExamOrder);
+  const p1 = [...pick(plan.comun, 40), ...pick(plan.esp, 40)].map(q => q.id);
+  const candidatos = shuffle(plan.llenos.length >= 2 ? plan.llenos : plan.sups).sort((a, b) => Math.min(b.qs.length, 10) - Math.min(a.qs.length, 10));
+  const p2 = candidatos.slice(0, 2).flatMap(s => s.qs.slice(0, 10).map(q => q.id));
+  if (!p1.length && !p2.length) return;
+  const parts = [];
+  if (p1.length) parts.push({key: 'p1', title: 'Parte 1 · test', valor: 0.5, timeMin: oficial ? 80 : p1.length, items: p1});
+  if (p2.length) parts.push({key: 'p2', title: 'Parte 2 · supuestos', valor: 3, timeMin: oficial ? 70 : Math.ceil(70 * p2.length / 20), items: p2});
+  startSession(newSession({kind: 'simulacro', official: oficial, title: oficial ? 'Simulacro oficial' : 'Simulacro reducido · no oficial', immediate: false, parts}));
+}
+
+/* Responder, comprobar, moverse, entregar */
+function answer(L, kb) {
+  const id = curId(), q = LIB.byId.get(id), part = curPart();
+  if (!q || !letras(q).includes(L) || part.delivered || (S.immediate && S.checked[id])) return;
+  S.ans[id] = L; saveSession(); render({kb});
+}
+function blank(kb) {
+  const id = curId();
+  if (S.immediate) { if (S.checked[id]) return; delete S.ans[id]; check(kb); return; }
+  delete S.ans[id]; saveSession(); render({kb});
+}
+function check(kb) {
+  const id = curId(), q = LIB.byId.get(id);
+  if (!q || S.checked[id]) return;
+  const mine = S.ans[id] || null, res = !mine ? 'bl' : mine === q.oficial ? 'ok' : 'ko';
+  S.checked[id] = true; S.recorded[id] = true;
+  const ev = record(id, res, mine);
+  S.run = res === 'ok' ? S.run + 1 : 0;
+  saveProgress(); saveSession();
+  render({kb, reveal: !kb, focus: 'primary'});
+  announce(res === 'ok' ? 'Correcta.' : res === 'ko' ? `Incorrecta. La oficial es la ${q.oficial}.` : `En blanco. La oficial es la ${q.oficial}.`);
+  rewards(ev);
+}
+function rewards(ev) {
+  if (ev.sale) toast('★', 'Sale del repaso', 'La has acertado 2 veces seguidas');
+  if (S && S.immediate && S.run === 3) toast('3', 'Tres seguidas', 'Sigue así');
+  else if (S && S.immediate && S.run > 0 && S.run % 10 === 0) toast(String(S.run), `${S.run} seguidas`, 'Racha de aciertos');
+  if (ev.primeraHoy) { const n = streak(); if (n > 1) toast('↑', `Día ${n} de racha`, 'Has estudiado hoy'); }
+  if (ev.objetivo) toast('✓', 'Objetivo de hoy cumplido', `${UI.goal} preguntas respondidas`);
+}
+let moving = false;
+function moveTo(i, kb) {
+  const part = curPart();
+  if (i < 0 || i >= part.items.length || i === S.i) return;
+  if (kb || reduceMotion() || moving) { S.i = i; saveSession(); render({kb: true}); return; }
+  const card = $('#card');
+  if (!card) { S.i = i; saveSession(); render(); return; }
+  moving = true; card.classList.add('out');
+  setTimeout(() => { S.i = i; saveSession(); moving = false; render({enter: true}); }, 160);
+}
+function next(kb) {
+  const id = curId(), last = S.i === curPart().items.length - 1;
+  if (S.immediate) {
+    if (!S.checked[id]) { if (S.ans[id]) check(kb); else announce('Elige una opción o déjala en blanco.'); return; }
+    if (last) finish(); else moveTo(S.i + 1, kb);
+  } else if (!last) moveTo(S.i + 1, kb);
+}
+function deliverPart(auto) {
+  const part = curPart();
+  if (part.delivered) return;
+  part.delivered = true; part.endAt = null;
+  let sale = 0;
+  for (const id of part.items) {
+    if (S.recorded[id]) continue;
+    const q = LIB.byId.get(id); if (!q) continue;
+    const m = S.ans[id] || null, ev = record(id, !m ? 'bl' : m === q.oficial ? 'ok' : 'ko', m);
+    S.recorded[id] = true; if (ev.sale) sale++;
+  }
+  saveProgress();
+  if (sale) toast('★', plural(sale, 'pregunta sale', 'preguntas salen') + ' del repaso', 'Acertadas 2 veces seguidas');
+  if (auto) toast('⏱', 'Tiempo agotado', `${part.title} entregada`);
+  if (S.p < S.parts.length - 1) { S.between = true; saveSession(); render(); }
+  else finish();
+}
+function finish() {
+  // En práctica se puntúa lo respondido o comprobado; en un examen entregado, todo.
+  for (const part of S.parts) {
+    if (part.delivered) continue;
+    for (const id of part.items) {
+      if (S.recorded[id] || !S.ans[id]) continue;
+      const q = LIB.byId.get(id); if (!q) continue;
+      record(id, S.ans[id] === q.oficial ? 'ok' : 'ko', S.ans[id]); S.recorded[id] = true;
+    }
+  }
+  S.scored = S.kind === 'simulacro' ? S.parts.flatMap(p => p.items) : S.parts.flatMap(p => p.items).filter(id => S.recorded[id]);
+  S.done = true; S.finishedAt = Date.now(); S.between = false;
+  S.result = computeResult(S);
+  if (S.kind === 'simulacro') {
+    const r = S.result, prev = P.sims.filter(x => x.oficial === S.official);
+    S.mejorAnterior = prev.length ? Math.max(...prev.map(x => x.total)) : null;
+    P.sims.push({fecha: S.finishedAt, oficial: S.official, total: r.total, maximo: r.maximo, p1: r.p1.puntos, p2: r.p2.puntos,
+      p1ok: r.p1.aprobada, p2ok: r.p2.aprobada, apto: r.apto, preguntas: S.scored.length});
+  }
+  saveProgress(); saveSession();
+  RF = 'todas'; printed = false;
+  if (route === 'sesion' || route === 'resultado') go('resultado');
+  else toast('✓', S.kind === 'simulacro' ? 'Simulacro entregado' : 'Sesión terminada', 'El resultado está en Inicio');
+}
+function computeResult(s) {
+  const it = id => { const q = LIB.byId.get(id); return q ? {marcada: s.ans[id] || null, oficial: q.oficial} : {marcada: null, oficial: 'ANULADA'}; };
+  if (s.kind === 'simulacro') {
+    const p1 = s.parts.find(p => p.key === 'p1')?.items || [], p2 = s.parts.find(p => p.key === 'p2')?.items || [];
+    const groups = new Map();
+    for (const id of p2) { const q = LIB.byId.get(id), k = q ? `${q.bank}#${q.sup}` : '?'; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(id); }
+    const r = resultadoSimulacro({comun: p1.filter(id => LIB.byId.get(id)?.bloque === 'C').map(it), especifica: p1.filter(id => LIB.byId.get(id)?.bloque !== 'C').map(it),
+      supuestos: [...groups.values()].map(a => a.map(it))});
+    r.supIds = [...groups.values()].map(a => a[0]);
+    return r;
+  }
+  return puntuar(s.scored.map(it), 1);
+}
+
+/* ==========================================================================
+   8. PIEZAS DE INTERFAZ COMPARTIDAS
+   ========================================================================== */
+const linkify = s => esc(s).replace(/https?:\/\/[^\s|<]+/g, u => `<a href="${u}" target="_blank" rel="noopener noreferrer">${u.length > 60 ? u.slice(0, 57) + '…' : u}</a>`);
+function tagsHTML(q) {
+  return [q.estado === 'DUDOSA' && '<span class="tag dud">Dudosa</span>', q.estado === 'DESACTUALIZADA' && '<span class="tag des">Desactualizada</span>',
+    q.anulada && '<span class="tag anu">Anulada</span>', q.fuera && '<span class="tag fdt">Fuera de temario</span>',
+    q.reserva && `<span class="tag res">Reserva${q.sustituye ? ' · sustituye a una anulada' : ''}</span>`].filter(Boolean).join('');
+}
+function metaHTML(q) {
+  const b = bankByPrefix(q.bank);
+  return `<span class="tema-code">${esc(q.fuera ? 'FdT' : q.tema)}</span><span>${esc(q.epigrafe)}</span>
+    <span>· ${esc(b ? bankName(b) : q.bank)}${b ? ` (${b.turno})` : ''} · n.º ${esc(q.numero)}</span>${tagsHTML(q)}`;
+}
+function optsHTML(q, {mine = null, checked = false, interactive = false} = {}) {
+  return letras(q).map(L => {
+    let cls = 'opt', who = '';
+    if (checked) {
+      if (L === q.oficial) { cls += ' right'; who = L === mine ? 'Tuya · bien' : 'Oficial'; }
+      else if (L === mine) { cls += ' wrong'; who = 'Tuya'; }
+      else cls += ' dim';
+    }
+    const pressed = interactive && !checked ? ` aria-pressed="${mine === L}"` : '';
+    return `<button class="${cls}" data-act="answer" data-k="${L}" data-fid="opt${L}"${pressed}${checked || !interactive ? ' disabled' : ''}>
+      <span class="k">${L}</span><span class="t">${esc(q[L])}</span><span class="who">${who}</span></button>`;
+  }).join('');
+}
+function explainHTML(q, mine, {valor = null} = {}) {
+  const res = q.anulada ? 'an' : !mine ? 'bl' : mine === q.oficial ? 'ok' : 'ko', e = P.q[q.id] || {};
+  const pts = valor == null ? '' : res === 'ok' ? ` · +${fmt(valor, valor % 1 ? 2 : 0)}` : res === 'ko' ? ` · −${fmt(valor / 3, 2)}` : ' · 0';
+  const verdict = {ok: ['var(--ok)', 'Bien'], ko: ['var(--ko)', 'No era esa'], bl: ['var(--ink-2)', 'En blanco'], an: ['var(--ko)', 'Anulada: no puntúa']}[res];
+  const estado = q.estado !== 'VIGENTE' ? `<div class="note ${q.estado === 'DUDOSA' ? 'dud' : ''}">
+      <div class="lbl">${q.estado === 'DUDOSA' ? 'Marcada como dudosa' : 'Desactualizada · qué ha cambiado'}</div>
+      ${q.actual.trim() ? `<p><b>Respuesta actual:</b> ${esc(q.actual)}</p>` : ''}${q.nota.trim() ? `<p>${esc(q.nota)}</p>` : ''}</div>` : '';
+  const repaso = e.rev ? `<p class="small" style="margin:10px 0 0">En tu repaso · ${e.racha ? `${e.racha} de 2 aciertos seguidos` : 'sale cuando la aciertes 2 veces seguidas'}.</p>` : '';
+  return `<div class="explain"><div class="head"><span class="verdict" style="color:${verdict[0]}">${verdict[1]}${pts}</span>
+      <span class="small">Tuya: <b>${mine || '—'}</b> · Oficial: <b>${q.anulada ? 'anulada' : q.oficial}</b></span>
+      ${q.anulada ? '' : `<button class="doubt" data-act="doubt" data-id="${esc(q.id)}" aria-pressed="${!!e.dud}"><span class="chk">✓</span>Estaba dudando</button>`}</div>
+    ${estado}${repaso}
+    <details class="more"><summary>Nota, fuente e id</summary>${q.estado === 'VIGENTE' && q.nota.trim() ? `<p>${esc(q.nota)}</p>` : ''}${q.fuente.trim() ? `<p>${linkify(q.fuente)}</p>` : ''}<p class="muted">${esc(q.id)} · ${esc(q.examen)}</p></details></div>`;
+}
+function switchHTML(change, checked, title, sub) {
+  return `<label class="switch"><input type="checkbox" data-change="${change}" ${checked ? 'checked' : ''}><span><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span></label>`;
+}
+const filtersHTML = () => switchHTML('f-fuera', UI.filters.fuera, 'Incluir «fuera de temario»', 'Excluidas por defecto')
+  + switchHTML('f-reservas', UI.filters.reservas, 'Incluir todas las reservas', 'Por defecto solo entran las que sustituyen a una anulada')
+  + switchHTML('f-dudosas', UI.filters.sinDudosas, 'Excluir dudosas y desactualizadas', 'Por defecto entran, con su etiqueta visible');
+/* Botón de mantener pulsado. «extra» añade clases (y, si hace falta, atributos: 'danger" data-p="…') */
+const holdHTML = (act, label, busy, ms, extra = '') => `<button class="hold ${extra}" data-hold="${act}" data-ms="${ms}" style="--hold:${ms}ms">${label}<span class="fill">${busy}</span></button>`;
+const fmtTime = ms => { const s = Math.max(0, Math.ceil(ms / 1000)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return (h ? h + ':' + pad2(m) : m) + ':' + pad2(s % 60); };
+const storageNote = () => store.ok ? '' : `<div class="storage-warn">El navegador no deja guardar datos: lo que hagas solo dura mientras esta pestaña siga abierta. Exporta tu progreso en Progreso › Datos antes de cerrarla.</div>`;
+function noBanks() {
+  if (SYNCING) return `<h1>Descargando los bancos…</h1><p class="small">Solo tarda la primera vez. Después se guardan en este dispositivo y funcionan sin conexión.</p>`;
+  return `<h1>Carga tus bancos</h1><p class="small">Arrastra aquí los .csv de los exámenes y sus _supuestos.md (varios a la vez), o elígelos del ordenador. Se guardan en este navegador.</p>
+    <button class="drop" data-act="pick" style="margin-top:14px"><b>Suelta aquí los .csv y _supuestos.md</b><div class="small">o pulsa para elegirlos</div></button>`;
+}
+
+/* ==========================================================================
+   9. PANTALLAS
+   ========================================================================== */
+const VIEWS = {};
+
+/* ---------- Inicio ---------- */
+VIEWS.inicio = () => {
+  const d = daysToExam(), st = streak(), hoy = P.days[dayKey()] || 0;
+  const ticks = Array.from({length: 14}, (_, k) => { const x = new Date(); x.setDate(x.getDate() - 13 + k); const on = !!P.days[dayKey(x)]; return `<i class="${on ? 'on' : ''}${k === 13 ? ' today' : ''}"></i>`; }).join('');
+  const due = reviewIds('due').length, all = reviewIds('all').length, banks = enabledBanks();
+  let pile;
+  if (!LIB.banks.some(b => b.questions.length)) pile = '';
+  else if (due) pile = deck('repasoDue', due, (due === 1 ? 'fallo listo' : 'fallos listos') + ' para repetir', `llevan más de 3 días · ${all} en total`, 'Empezar');
+  else if (all) pile = deck('repasoAll', all, (all === 1 ? 'fallo' : 'fallos') + ' en tu repaso', 'ninguno lleva aún 3 días; puedes repasarlos igualmente', 'Repasar');
+  else pile = deck('rapida', Math.min(20, practicePool(UI.practica, true).length), 'preguntas al azar de todos los temas', 'no tienes fallos pendientes: practica sin pensar', 'Practicar');
+  const resume = S && !S.done ? `<div class="resume"><span><b>${esc(S.title)}</b> a medias · ${S.parts.length > 1 ? `parte ${S.p + 1} · ` : ''}pregunta ${S.i + 1} de ${curPart().items.length}${curPart().endAt ? ' · el reloj sigue corriendo' : ''}</span><span class="spacer"></span>
+      <button class="btn" data-go="sesion">Continuar</button>${holdHTML('discard', 'Mantén para descartar', 'Descartando…', 1200)}</div>`
+    : S && S.done ? `<div class="resume" style="background:var(--card-2);color:var(--ink)"><span>Último resultado: <b>${esc(S.title)}</b></span><span class="spacer"></span><button class="btn" data-go="resultado" style="background:var(--ink);color:var(--bg)">Verlo</button></div>` : '';
+  const weak = temaStats().filter(t => t.pct != null).sort((a, b) => a.pct - b.pct).slice(0, 6);
+  const stag = UI.staggerDay !== dayKey(); if (stag) { UI.staggerDay = dayKey(); saveUI(); }
+  return `${storageNote()}<div class="${stag && !reduceMotion() ? 'stagger' : ''}">
+    <div class="top"><div class="num days">${d > 0 ? d : d === 0 ? 'Hoy' : '—'}<small>${d > 0 ? `${d === 1 ? 'día' : 'días'} para el examen · 23 de enero de 2027` : d === 0 ? 'es el examen. Mucha suerte.' : 'el examen del 23 de enero de 2027 ya pasó'}</small></div>
+      <div class="streak"><div class="num">${st}</div><div class="small">${st === 1 ? 'día seguido' : 'días seguidos'}</div><div class="ticks" aria-label="Días estudiados en las dos últimas semanas">${ticks}</div></div></div>
+    ${resume}
+    ${LIB.banks.some(b => b.questions.length) ? `${pile}
+    <div class="goal"><span>${hoy} de ${UI.goal} hoy</span><span class="track"><i style="width:${Math.min(100, hoy / UI.goal * 100)}%"></i></span>${hoy >= UI.goal ? '<span style="color:var(--ok);font-weight:700">✓</span>' : ''}</div>
+    <div class="modes">
+      <button class="mode" data-go="practicar"><kbd>1</kbd><span><b>Práctica por temas</b><span>Elige temas, bancos, cuántas y el orden</span></span><span aria-hidden="true">→</span></button>
+      <button class="mode" data-go="simulacro"><kbd>2</kbd><span><b>Simulacro oficial</b><span>80 preguntas en 80 min · después 2 supuestos en 70 min</span></span><span aria-hidden="true">→</span></button>
+      <button class="mode" data-go="repaso"><kbd>3</kbd><span><b>Repaso de fallos</b><span>${all ? `${all} en cola · ${due} de hace más de 3 días` : 'Vacío por ahora'}</span></span><span aria-hidden="true">→</span></button>
+      <button class="mode" data-go="bancos"><kbd>4</kbd><span><b>Mis bancos</b><span>${plural(banks.length, 'examen activo', 'exámenes activos')} · ${banks.reduce((a, b) => a + b.questions.filter(q => !q.anulada).length, 0)} preguntas</span></span><span aria-hidden="true">→</span></button>
+    </div>
+    <div><h2>Temas más flojos ${weak.length ? '<span class="muted" style="text-transform:none;letter-spacing:0;font-weight:400">· línea = 60 %</span>' : ''}</h2>
+      ${weak.length ? `<div class="bars">${weak.map(t => { const low = t.pct < 60; return `<span class="t">${t.tema}</span><span class="track" title="${Math.round(t.pct)} % en ${t.n} respuestas"><i class="${low ? 'low' : ''}" style="width:${t.pct}%"></i></span><span class="p ${low ? 'low' : ''}">${Math.round(t.pct)} %</span>`; }).join('')}</div>
+        <p class="small"><a href="#" data-go="progreso">Ver todos los temas</a></p>` : '<p class="small">Aún no hay datos. Responde unas cuantas preguntas y aquí verás dónde flojeas.</p>'}</div>`
+    : noBanks()}</div>`;
+};
+function deck(act, n, title, sub, cta) {
+  return `<div class="deck"><div class="f"></div><div class="f"></div>
+    <button class="f front press" data-act="${act}"><span><span class="small">La pila de hoy</span><span class="num">${n}</span><b>${title}</b><span class="small">${sub}</span></span>
+    <span class="go">${cta} →</span></button></div>`;
+}
+
+/* ---------- Practicar ---------- */
+VIEWS.practicar = () => {
+  if (!enabledBanks().length) return noBanks();
+  const cfg = UI.practica, base = practicePool(cfg, true);
+  const temas = [...TEMAS, ...(UI.filters.fuera ? [FDT] : [])];
+  const info = {}; temas.forEach(t => info[t] = {n: 0, eps: new Map()});
+  for (const q of base) if (info[q.tema]) { info[q.tema].n++; if (q.epigrafe) info[q.tema].eps.set(q.epigrafe, (info[q.tema].eps.get(q.epigrafe) || 0) + 1); }
+  const stats = Object.fromEntries(temaStats().map(t => [t.tema, t]));
+  const pool = practicePool(cfg), N = cfg.n > 0 ? Math.min(cfg.n, pool.length) : pool.length;
+  const formatos = new Set(enabledBanks().filter(b => !cfg.sinBancos.includes(b.prefix)).map(b => b.formato));
+  const temaBtn = t => {
+    const i = info[t], eps = [...i.eps.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+    const s = stats[t], low = s && s.pct != null && s.pct < 60;
+    return `<button class="tema ${low ? 'low' : ''}" data-act="tema" data-t="${esc(t)}" aria-pressed="${cfg.temas.includes(t)}" ${i.n ? '' : 'disabled'} title="${esc(eps.join('\n'))}">
+      <b>${t === FDT ? 'Fuera de temario' : t}<span>${i.n} preg.${low ? ` · ${Math.round(s.pct)} % bien` : ''}</span></b><small>${esc(eps.join(' · ') || 'Sin preguntas en los bancos elegidos')}</small></button>`;
+  };
+  return `<h1>Practicar</h1><p class="small">Elige temas y bancos. Cada pregunta se muestra con sus opciones reales, sean 3 o 4. El fallo resta 1/3 también aquí.</p>
+    <h2>Temas</h2>
+    <div class="row" style="margin-bottom:10px">
+      <button class="chip" data-act="temasSet" data-v="C">Común C1–C8</button><button class="chip" data-act="temasSet" data-v="T">Específico T1–T14</button>
+      <button class="chip" data-act="temasSet" data-v="flojos">Mis flojos (&lt; 60 %)</button><button class="chip" data-act="temasSet" data-v="todos">Todos</button><button class="chip" data-act="temasSet" data-v="ninguno">Ninguno</button></div>
+    <div class="temas">${temas.map(temaBtn).join('')}</div>
+    <h2>Bancos</h2>
+    <div class="row">${enabledBanks().map(b => `<button class="chip" data-act="bancoPractica" data-p="${esc(b.prefix)}" aria-pressed="${!cfg.sinBancos.includes(b.prefix)}">${esc(bankName(b))} · ${b.turno}${b.formato !== 4 ? ` · ${b.formato === 3 ? '3' : '3/4'} op.` : ''}</button>`).join('')}</div>
+    ${formatos.size > 1 ? '<p class="small">Mezclas bancos de 3 y 4 opciones: cada pregunta se ve con las suyas.</p>' : ''}
+    <h2>Cuántas y en qué orden</h2>
+    <div class="field"><input type="number" min="1" max="999" value="${cfg.n || ''}" placeholder="Todas" data-change="nPractica" aria-label="Número de preguntas">
+      ${[10, 20, 40].map(n => `<button class="chip" data-act="nPractica" data-v="${n}" aria-pressed="${cfg.n === n}">${n}</button>`).join('')}<button class="chip" data-act="nPractica" data-v="0" aria-pressed="${!cfg.n}">Todas</button></div>
+    <div class="field"><button class="chip" data-act="orden" data-v="aleatorio" aria-pressed="${cfg.orden === 'aleatorio'}">Aleatorio</button><button class="chip" data-act="orden" data-v="examen" aria-pressed="${cfg.orden === 'examen'}">Por examen</button></div>
+    <h2>Opciones</h2>
+    ${switchHTML('inmediata', cfg.inmediata, 'Corrección inmediata', 'Desactívala para practicar en modo examen: corriges todo al entregar')}
+    ${switchHTML('supPractica', cfg.supuestos, 'Incluir preguntas de supuestos', 'Con su enunciado arriba')}
+    ${filtersHTML()}
+    <div class="actions stickybar">
+      <button class="btn big primary" data-act="startPractica" ${N ? '' : 'disabled'}>${N ? `Empezar · ${plural(N, 'pregunta', 'preguntas')}` : 'Elige algún tema'}</button>
+      <span class="small">${pool.length} disponibles con esta selección</span></div>`;
+};
+
+/* ---------- Simulacro ---------- */
+VIEWS.simulacro = () => {
+  if (!LIB.banks.some(b => b.questions.length)) return noBanks();
+  const plan = simPlan(), f = plan.faltan;
+  const v = (have, need) => `<span class="v ${have >= need ? 'good' : 'bad'}">${Math.min(have, need)} / ${need}${have >= need ? ' ✓' : ` · faltan ${need - have}`}</span>`;
+  const supTxt = plan.sups.length ? plan.sups.map(s => `${esc(bankName(bankByPrefix(s.bank)))} S${s.n} (${s.qs.length})`).join(', ') : 'ninguno';
+  const hayAlgo = plan.comun.length || plan.esp.length || plan.sups.length;
+  return `<h1>Simulacro oficial</h1>
+    <p class="small">Parte 1: 40 preguntas comunes + 40 específicas en 80 minutos (0,5 por acierto, máximo 40, mínimo 20). Parte 2: 2 supuestos de 10 preguntas en 70 minutos (3 por acierto, máximo 60, mínimo 30). Cada fallo resta 1/3 de acierto; los blancos no restan. Apruebas con 50 de 100 y los dos mínimos, y la parte 2 solo cuenta si apruebas la parte 1.</p>
+    <h2>Bancos</h2><div class="bank-list">${plan.rows.map(r => `<div class="bank-mini"><span class="dot" style="background:${r.use ? 'var(--ok)' : 'var(--line)'}"></span><span><b>${esc(bankName(r.b))}</b> · ${turnoTxt(r.b.turno)}<br><span class="small">${esc(r.why)}</span></span></div>`).join('')}</div>
+    <h2>Preguntas disponibles</h2>
+    <div class="card need"><span>Comunes</span>${v(plan.comun.length, 40)}<span>Específicas</span>${v(plan.esp.length, 40)}<span>Supuestos completos (10 preguntas)</span>${v(plan.llenos.length, 2)}</div>
+    <p class="small">Supuestos con enunciado: ${supTxt}.</p>
+    <h2>Qué preguntas entran</h2>${filtersHTML()}
+    <div class="actions" style="margin-top:22px">
+    ${plan.oficial ? `<button class="btn big primary" data-act="simOficial">Empezar el simulacro oficial</button><span class="small">150 minutos en total. El reloj corre aunque salgas.</span>`
+      : `<div class="warn-box" style="width:100%"><b>No hay preguntas suficientes para un simulacro oficial.</b> ${f.comun + f.esp + f.sups === 1 ? 'Falta' : 'Faltan'} ${[f.comun && plural(f.comun, 'común', 'comunes'), f.esp && plural(f.esp, 'específica', 'específicas'), f.sups && plural(f.sups, 'supuesto completo', 'supuestos completos')].filter(Boolean).join(', ')}. ${!UI.filters.fuera && plan.rows.some(r => r.use && r.b.count.fuera) ? 'Activar «fuera de temario» puede completar la parte 1.' : ''} Carga más bancos de 4 opciones o haz un simulacro reducido, que se marcará como <b>no oficial</b> y no contará en la evolución de tu nota.</div>
+        ${hayAlgo ? `<button class="btn big" data-act="simReducido">Hacer un simulacro reducido (no oficial)</button>` : ''}`}
+    </div>`;
+};
+
+/* ---------- Repaso ---------- */
+VIEWS.repaso = () => {
+  const due = reviewIds('due'), all = reviewIds('all');
+  const porTema = {}; all.forEach(id => { const t = LIB.byId.get(id).tema; porTema[t] = (porTema[t] || 0) + 1; });
+  const dudas = Object.entries(P.q).filter(([id, e]) => e.dud && e.rev && LIB.byId.has(id)).length;
+  return `<h1>Repaso de fallos</h1><p class="small">Cada pregunta que fallas entra aquí, y también las que marcas con «Estaba dudando». Sale cuando la aciertas 2 veces seguidas. Funciona con todos los bancos activos, también los de 3 opciones.</p>
+    <div class="deck" style="margin-top:18px"><div class="f"></div><div class="f"></div><button class="f front press" data-act="repasoDue" ${due.length ? '' : 'disabled'}>
+      <span><span class="small">Repetición espaciada</span><span class="num">${due.length}</span><b>fallos de hace más de 3 días</b><span class="small">Lo que ya se te puede haber olvidado</span></span><span class="go">Empezar</span></button></div>
+    <button class="card press" data-act="repasoAll" ${all.length ? '' : 'disabled'} style="width:100%;text-align:left;display:flex;align-items:center;gap:14px;cursor:pointer">
+      <span class="num" style="font-size:40px">${all.length}</span><span style="flex:1"><b style="font:700 18px var(--display)">Solo mis fallos</b><br><span class="small">Todos los que tienes en cola${dudas ? ` · ${dudas} por dudar` : ''}</span></span><span class="go">Repasar</span></button>
+    ${switchHTML('inmRepaso', UI.repaso.inmediata, 'Corrección inmediata', 'Ver la respuesta al momento')}
+    <button class="card press" data-go="informe" style="width:100%;text-align:left;display:flex;align-items:center;gap:14px;cursor:pointer;margin-top:12px">
+      <span style="flex:1"><b style="font:700 18px var(--display)">Informe de fallos</b><br><span class="small">Tus puntos débiles por tema y epígrafe, con cada pregunta fallada. En .md para dárselo a una IA, o en PDF</span></span><span class="go">Abrir</span></button>
+    ${all.length ? `<h2>En cola por tema</h2><div class="row">${Object.entries(porTema).sort((a, b) => temaOrden(a[0]) - temaOrden(b[0])).map(([t, n]) => `<span class="chip" style="cursor:default">${t === FDT ? 'FdT' : t} · ${n}</span>`).join('')}</div>` : ''}`;
+};
+
+/* ---------- Informe de fallos ---------- */
+const INF_TEMAS = [...TEMAS, FDT];                            // los que se pueden elegir, en orden de temario
+const informeOp = (o = UI.informe) => ({alcance: o.alcance, dudas: o.dudas, temas: INF_TEMAS.filter(t => (o.temas || []).includes(t))});
+const informeDe = op => informeFallos(enabledBanks().flatMap(b => b.questions), P.q, op);
+const informeCtx = () => ({fecha: new Date(), dias: daysToExam(), enunciado: q => supuestoDe(q)?.enunciado || '',
+  banco: p => { const b = bankByPrefix(p); return b ? `${bankName(b)} (${b.turno})` : p; }});
+VIEWS.informe = () => {
+  if (!enabledBanks().length) return noBanks();
+  const o = UI.informe, inf = informeDe(informeOp()), r = inf.resumen;
+  const otro = informeDe(informeOp({...o, alcance: o.alcance === 'repaso' ? 'todas' : 'repaso'})).resumen.fallos;
+  const n = {[o.alcance]: r.fallos, [o.alcance === 'repaso' ? 'todas' : 'repaso']: otro};
+  const p0 = v => v == null ? '—' : `${Math.round(v)} %`;
+  // Selector de temas: cada chip dice cuántas preguntas suyas entrarían; los atajos marcan un grupo entero
+  const sinFiltro = informeDe({...informeOp(), temas: []}), porTema = {};
+  [...sinFiltro.preguntas, ...sinFiltro.supuestos.flatMap(s => s.items)].forEach(x => porTema[x.q.tema] = (porTema[x.q.tema] || 0) + 1);
+  const conPreguntas = new Set([...sinFiltro.temas, ...sinFiltro.pocos].map(t => t.tema).concat(sinFiltro.sinPracticar));
+  const elegidos = informeOp().temas, igual = set => set.length === elegidos.length && set.every(t => elegidos.includes(t));
+  const atajos = [['todos', 'Todos', []], ['C', 'Común C1–C8', TEMAS_C], ['T', 'Específico T1–T14', TEMAS_T], ['flojos', 'Mis flojos (< 60 %)', null]];
+  const temasSel = `<div class="field">${atajos.map(([v, l, set]) => `<button class="chip" data-act="infTemas" data-v="${v}" aria-pressed="${set ? igual(set) : false}">${l}</button>`).join('')}</div>
+      <div class="field inf-temas">${INF_TEMAS.filter(t => conPreguntas.has(t)).map(t => `<button class="chip" data-act="infTema" data-t="${esc(t)}" aria-pressed="${elegidos.includes(t)}">${esc(t === FDT ? 'FdT' : t)}${porTema[t] ? ` <span class="small">${porTema[t]}</span>` : ''}</button>`).join('')}</div>
+      <p class="small" style="margin:0 0 6px">${elegidos.length ? `Solo ${elegidos.map(t => t === FDT ? 'FdT' : t).join(', ')}.` : 'Sin elegir ninguno entran todos.'} El número es cuántas preguntas de ese tema entran.</p>`;
+  let k = 0;
+  const item = ({q, e}) => {
+    const mia = e.marcada && e.marcada !== q.oficial ? e.marcada : null;
+    const extra = [
+      q.estado !== 'VIGENTE' && `<div class="note ${q.estado === 'DUDOSA' ? 'dud' : ''}"><div class="lbl">${q.estado === 'DUDOSA' ? 'Marcada como dudosa' : 'Desactualizada'}</div>${q.actual.trim() ? `<p><b>Respuesta actual:</b> ${esc(q.actual)}</p>` : ''}</div>`,
+      q.nota.trim() && `<p class="small">${esc(q.nota)}</p>`, q.fuente.trim() && `<p class="small inf-src">${linkify(q.fuente)}</p>`].filter(Boolean).join('');
+    return `<div class="review-item inf-q"><article class="fcard"><div class="meta"><b>${++k}.</b>${metaHTML(q)}</div>
+      <p class="qtext">${esc(q.pregunta)}</p><div class="opts">${optsHTML(q, {mine: mia, checked: true})}</div>
+      <p class="small" style="margin-top:10px">${!e.ko ? 'La acertaste, pero estabas dudando · ' + esc(infHistorial(e)) : !mia ? 'No consta qué marcaste · ' + esc(infHistorial(e)) : esc(infHistorial(e).replace(/^./, c => c.toUpperCase()))}</p>${extra}</article></div>`;
+  };
+  let grupo = null;
+  const preguntas = inf.preguntas.map(x => {
+    const g = x.q.tema + '\u0001' + x.q.epigrafe, h = g !== grupo ? `<h3 class="inf-ep"><span class="tema-code">${esc(infTema(x.q.tema))}</span> ${esc(x.q.epigrafe || 'Sin epígrafe')}</h3>` : '';
+    grupo = g; return h + item(x);
+  }).join('');
+  const supuestos = inf.supuestos.map(s => {
+    const b = bankByPrefix(s.bank), txt = b?.sup[s.sup]?.enunciado;
+    return `<h3 class="inf-ep">${esc(b ? bankName(b) : s.bank)} · Supuesto ${s.sup}</h3>
+      ${txt ? `<div class="case"><div class="body">${mdToHtml(txt)}</div></div>` : '<p class="small">No está cargado el enunciado de este supuesto.</p>'}${s.items.map(item).join('')}`;
+  }).join('');
+  const temasTbl = inf.temas.length ? `<div class="tbl"><table><thead><tr><th>Tema</th><th>Aciertos</th><th>Respuestas</th><th>Vistas</th><th>En el informe</th></tr></thead>
+    <tbody>${inf.temas.map(t => `<tr${t.pct < 60 ? ' class="low"' : ''}><td><b>${esc(infTema(t.tema))}</b></td><td>${p0(t.pct)}</td><td>${t.n}</td><td>${t.vistas} de ${t.total}</td><td>${t.fallos}</td></tr>`).join('')}</tbody></table></div>`
+    : `<p class="small">Aún ningún tema tiene ${INF_MIN_RESP} respuestas o más.</p>`;
+  const nSup = inf.supuestos.reduce((a, s) => a + s.items.length, 0);
+  return `${storageNote()}<h1>Informe de fallos</h1>
+    <p class="small no-print">Dónde fallas más y qué preguntas repasar. Descárgalo en .md para dárselo a una IA que te ayude a estudiar (lleva instrucciones para ella y cada pregunta completa), o guárdalo como PDF.</p>
+    <p class="small print-only">Generado el ${esc(infFecha(Date.now()))} · ${daysToExam() > 0 ? `faltan ${plural(daysToExam(), 'día', 'días')} para el examen` : ''}</p>
+    <div class="card no-print" style="margin-top:14px">
+      <div class="field"><button class="chip" data-act="infAlcance" data-v="repaso" aria-pressed="${o.alcance === 'repaso'}">En el repaso ahora · ${n.repaso}</button><button class="chip" data-act="infAlcance" data-v="todas" aria-pressed="${o.alcance === 'todas'}">Falladas alguna vez · ${n.todas}</button></div>
+      ${temasSel}
+      ${switchHTML('infDudas', o.dudas, 'Incluir las de «estaba dudando»', 'Aunque las acertaras')}
+      <div class="field" style="margin-top:4px"><span class="small">El .md:</span>${[['completo', 'Completo, para una IA'], ['breve', 'Breve: pregunta, correcta y la tuya']].map(([v, l]) => `<button class="chip" data-act="infFormato" data-v="${v}" aria-pressed="${o.formato === v}">${l}</button>`).join('')}</div>
+      <div class="actions" style="margin-top:8px"><button class="btn primary" data-act="infDescargar" ${r.fallos ? '' : 'disabled'}>Descargar .md</button><button class="btn" data-act="infCopiar" ${r.fallos ? '' : 'disabled'}>Copiar .md</button><button class="btn" data-act="infImprimir" ${r.fallos ? '' : 'disabled'}>Imprimir / PDF</button></div>
+    </div>
+    <h2>Resumen</h2>
+    <div class="card kv"><span>Preguntas en el informe</span><span>${r.fallos}${nSup ? ` · ${nSup} de supuestos` : ''}</span><span>Preguntas vistas</span><span>${r.vistas} de ${r.total} (${pct(r.vistas, r.total)} %)</span>
+      <span>Respuestas dadas</span><span>${r.n}</span><span>Aciertos</span><span>${p0(r.pct)}</span></div>
+    ${inf.prioridad.length ? `<h2>Orden de estudio sugerido</h2><ol class="inf-orden">${inf.prioridad.map(s => `<li><b>${esc(infTema(s.tema))}</b> · ${esc(s.epigrafe || 'Sin epígrafe')}<br><span class="small">${plural(s.fallos, 'pregunta fallada', 'preguntas falladas')} · ${p0(s.pct)} de aciertos en ${plural(s.n, 'respuesta', 'respuestas')}</span></li>`).join('')}</ol>
+      <p class="small">Los epígrafes con más preguntas falladas; a igualdad, el de menos aciertos.</p>` : ''}
+    <h2>Temas, de peor a mejor</h2>${temasTbl}
+    ${inf.pocos.length ? `<p class="small">Con pocas respuestas todavía: ${inf.pocos.map(t => `${esc(infTema(t.tema))} (${p0(t.pct)} en ${t.n})`).join(', ')}.</p>` : ''}
+    ${inf.sinPracticar.length ? `<p class="small">Sin practicar todavía: ${inf.sinPracticar.map(infTema).map(esc).join(', ')}.</p>` : ''}
+    ${inf.epigrafes.length ? `<h2>Epígrafes con fallos</h2><div class="tbl"><table><thead><tr><th>Tema</th><th>Epígrafe</th><th>Falladas</th><th>Aciertos</th></tr></thead>
+      <tbody>${inf.epigrafes.map(s => `<tr><td><b>${esc(infTema(s.tema))}</b></td><td>${esc(s.epigrafe || '—')}</td><td>${s.fallos}</td><td>${p0(s.pct)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+    ${preguntas ? `<h2>Preguntas falladas · ${inf.preguntas.length}</h2>${preguntas}` : ''}
+    ${supuestos ? `<h2>Supuestos prácticos · ${nSup}</h2>${supuestos}` : ''}
+    ${r.fallos ? '' : `<p class="small" style="margin-top:18px">${o.alcance === 'repaso' && n.todas ? 'No tienes nada en el repaso con este filtro. Prueba «Falladas alguna vez».' : 'No hay preguntas falladas con este filtro.'}</p>`}`;
+};
+const informeBreve = () => UI.informe.formato === 'breve';
+function informeTexto() { return (informeBreve() ? informeMDBreve : informeMD)(informeDe(informeOp()), informeCtx()); }
+function informeDescargar() {
+  const blob = new Blob([informeTexto()], {type: 'text/markdown;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `fallos-oposicion-${informeBreve() ? 'breve-' : ''}${dayKey()}.md`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('↓', 'Informe descargado', a.download);
+}
+async function informeCopiar() {
+  try { await navigator.clipboard.writeText(informeTexto()); toast('✓', 'Informe copiado', 'Pégalo en el chat de la IA'); }
+  catch (e) { toast('!', 'No se pudo copiar', 'El navegador no lo permite aquí: usa «Descargar .md»'); }
+}
+
+/* ---------- Bancos ---------- */
+let LAST_REPORT = null;
+VIEWS.bancos = () => {
+  const anuladas = LIB.banks.reduce((a, b) => a + b.count.anulada, 0);
+  const quitados = WEB ? (UI.webQuitados || []).length : 0;
+  return `${storageNote()}<h1>Mis bancos</h1><p class="small">Se guardan en este navegador. Tu progreso va por id de pregunta: quitar o volver a cargar un banco no lo borra.</p>
+    ${WEB ? `<p class="small">Los bancos publicados con la app se descargan solos y se actualizan cada vez que la abres con conexión.${quitados ? ` Has quitado ${plural(quitados, 'banco', 'bancos')} de los publicados. <a href="#" data-act="recuperarWeb">Volver a descargarlos</a>` : ''}</p>` : ''}
+    <button class="drop" data-act="pick" style="margin-top:12px"><b>Suelta aquí los .csv y _supuestos.md</b><div class="small">Varios a la vez · o pulsa para elegirlos · cada .md se empareja con su CSV por el prefijo del nombre</div></button>
+    ${LAST_REPORT ? `<div class="card" style="margin-top:12px"><div class="row"><b>Última carga</b><span class="spacer"></span><button class="btn ghost" data-act="verInforme">Ver informe</button><button class="btn ghost" data-act="cerrarInforme" aria-label="Cerrar">✕</button></div><p class="small">${esc(LAST_REPORT.resumen)}</p></div>` : ''}
+    ${LIB.banks.length ? `<div class="row" style="margin-top:14px"><span class="small">${plural(LIB.banks.length, 'banco', 'bancos')}</span><span class="spacer"></span><button class="btn" data-act="anuladas" ${anuladas ? '' : 'disabled'}>Ver anuladas (${anuladas})</button></div>` : ''}
+    ${LIB.banks.map(bankCard).join('')}`;
+};
+function bankCard(b) {
+  if (!b.hasCsv) return `<div class="bank"><div class="headrow"><div><h3>${esc(bankName(b))}</h3><div class="small">${esc(b.prefix)} · solo enunciados (${esc(b.fileMd || '')})</div></div></div>
+    <div class="warn-box" style="margin-top:10px"><b>Falta el CSV.</b> Carga ${esc(b.prefix)}.csv para usar estos supuestos.</div>
+    <div class="actions">${holdHTML('removeBank', 'Mantén para quitar', 'Quitando…', 1200, 'danger" data-p="' + esc(b.prefix))}</div></div>`;
+  const c = b.count, n = b.questions.length;
+  const modos = [];
+  if (n) modos.push('práctica y repaso');
+  const simOk = b.formato === 4;
+  const sim = !n ? '' : !simOk ? `simulacro: no (${b.formato === 3 ? '3 opciones' : 'mezcla 3 y 4 opciones'})` : b.turno === 'L' ? 'simulacro: común, específica y supuestos' : 'simulacro: solo específicas';
+  const issues = b.invalid.length + b.dups.length + b.warnings.length + (b.fatal ? 1 : 0);
+  return `<div class="bank ${b.enabled ? '' : 'off'}">
+    <div class="headrow"><div><h3>${esc(bankName(b))}</h3><div class="small">${[turnoTxt(b.turno), b.formato === 4 ? '4 opciones' : b.formato === 3 ? '3 opciones' : b.formato === 'mixto' ? 'mezcla de 3 y 4 opciones' : '', esc(b.prefix)].filter(Boolean).join(' · ')}</div></div>
+      ${switchHTML('toggleBank" data-p="' + esc(b.prefix), b.enabled, 'En tests', '')}</div>
+    ${b.fatal ? `<div class="warn-box" style="margin-top:10px"><b>No se pudo leer.</b> ${esc(b.fatal)}</div>` : ''}
+    <div class="facts">${c.comun ? `<span class="fact n">${c.comun} común</span>` : ''}${c.especifica ? `<span class="fact n">${c.especifica} específica</span>` : ''}${c.reserva ? `<span class="fact n">${c.reserva} reserva</span>` : ''}${b.supNums.length ? `<span class="fact n">${plural(b.supNums.length, 'supuesto', 'supuestos')} · ${c.supuesto} preg.</span>` : ''}</div>
+    ${n ? `<div class="facts">${c.dudosa ? `<span class="fact w">${plural(c.dudosa, 'dudosa', 'dudosas')}</span>` : ''}${c.desactualizada ? `<span class="fact a">${plural(c.desactualizada, 'desactualizada', 'desactualizadas')}</span>` : ''}${c.anulada ? `<span class="fact k">${plural(c.anulada, 'anulada', 'anuladas')}</span>` : ''}${c.fuera ? `<span class="fact">${c.fuera} fuera de temario</span>` : ''}${!c.dudosa && !c.desactualizada && !c.anulada ? '<span class="fact">Todas vigentes</span>' : ''}</div>` : ''}
+    ${b.twins.length ? `<div class="info-box" style="margin-top:10px;font-size:14px">${twinsTxt(b)}</div>` : ''}
+    <p class="small" style="margin-top:10px">${n ? [modos.join(''), sim].filter(Boolean).join(' · ') : 'No aporta preguntas propias.'}</p>
+    ${b.supNums.length ? `<p class="small">${b.supSinEnunciado.length ? `<span style="color:var(--ko)">Sin enunciado: supuesto ${b.supSinEnunciado.join(', ')}. Carga ${esc(b.prefix)}_supuestos.md.</span>` : `Enunciados enlazados: supuesto ${b.supNums.join(' y ')}${b.fileMd ? ` (${esc(b.fileMd)})` : ''}.`}</p>` : ''}
+    ${b.enunciadoSinPreguntas.length ? `<p class="small" style="color:var(--warn)">El .md trae el supuesto ${b.enunciadoSinPreguntas.join(', ')} pero el CSV no tiene sus preguntas.</p>` : ''}
+    ${issues ? `<details class="issues"><summary>${[b.invalid.length && plural(b.invalid.length, 'fila inválida', 'filas inválidas'), b.dups.length && plural(b.dups.length, 'id repetido ignorado', 'ids repetidos ignorados'), b.warnings.length && plural(b.warnings.length, 'aviso', 'avisos')].filter(Boolean).join(' · ')}</summary>
+      <ul>${b.invalid.map(r => `<li>Fila ${r.line} (${esc(r.id)}): ${esc(r.reasons.join('; '))}</li>`).join('')}${b.dups.map(d => `<li>${esc(d.id)}: ya estaba en ${esc(d.owner)}; se ignora este duplicado</li>`).join('')}${b.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></details>` : ''}
+    <div class="actions">${holdHTML('removeBank', 'Mantén para quitar', 'Quitando…', 1200, 'danger" data-p="' + esc(b.prefix))}<span class="muted">Tu progreso no se borra.</span></div></div>`;
+}
+
+/* ---------- Progreso ---------- */
+let TESTS = null;
+VIEWS.progreso = () => {
+  const ts = temaStats(), byT = Object.fromEntries(ts.map(t => [t.tema, t]));
+  const qs = enabledBanks().flatMap(b => b.questions).filter(q => !q.anulada);
+  const vistas = qs.filter(q => P.q[q.id]?.n).length;
+  const tile = t => {
+    const s = byT[t];
+    if (!s.total) return `<div class="none" title="${t}: sin preguntas en los bancos activos"><b>${t}</b><span>—</span></div>`;
+    if (s.pct == null) return `<div class="none" title="${t}: sin responder"><b>${t}</b><span>0 / ${s.total}</span></div>`;
+    // Intensidad máxima ~45 %: así el texto mantiene contraste ≥ 4,5 en los dos temas
+    const p = s.pct, low = p < 60, bg = low ? `color-mix(in srgb, var(--ko) ${15 + (60 - p) * .5}%, var(--card))` : `color-mix(in srgb, var(--ok) ${12 + (p - 60) * .75}%, var(--card))`;
+    return `<div class="${low ? 'low' : ''}" style="background:${bg}" title="${t}: ${Math.round(p)} % de aciertos en ${s.n} respuestas · ${s.vistas} de ${s.total} preguntas vistas"><b>${t}</b><span>${Math.round(p)} %${low ? ' ▼' : ''}</span></div>`;
+  };
+  const weak = ts.filter(t => t.pct != null && t.pct < 60).sort((a, b) => a.pct - b.pct);
+  const sims = P.sims.filter(s => s.oficial), red = P.sims.length - sims.length;
+  const due = reviewIds('due').length, all = reviewIds('all').length;
+  const dudas = Object.values(P.q).filter(e => e.dud).length;
+  return `${storageNote()}<h1>Progreso</h1>
+    <div class="top" style="margin-bottom:10px"><div class="num days" style="font-size:clamp(64px,13vw,110px)">${Math.max(0, daysToExam())}<small>días para el 23 de enero de 2027</small></div>
+      <div class="streak"><div class="num">${streak()}</div><div class="small">días seguidos · récord ${bestStreak()}</div></div></div>
+    <div class="card kv"><span>Preguntas vistas</span><span>${vistas} de ${qs.length} (${pct(vistas, qs.length)} %)</span><span>En repaso</span><span>${all} · ${due} de hace más de 3 días</span><span>Marcadas «estaba dudando»</span><span>${dudas}</span><span>Respondidas hoy</span><span>${P.days[dayKey()] || 0}</span></div>
+    <h2>Aciertos por tema · bancos activos</h2>
+    <div class="heat">${TEMAS_C.map(tile).join('')}</div><div class="heat t">${TEMAS_T.map(tile).join('')}</div>
+    <p class="small" style="margin-top:8px">${weak.length ? `<b style="color:var(--ko)">Por debajo del 60 %:</b> ${weak.map(t => `${t.tema} (${Math.round(t.pct)} %, ${plural(t.n, 'respuesta', 'respuestas')})`).join(' · ')}` : 'Ningún tema por debajo del 60 % con lo respondido hasta ahora.'}</p>
+    <p class="small"><a href="#" data-go="informe">Informe de fallos por tema, epígrafe y pregunta (.md o PDF) →</a></p>
+    <h2>Simulacros oficiales</h2>
+    ${sims.length ? simChart(sims) + `<div class="card" style="margin-top:10px">${sims.slice(-8).reverse().map(s => `<div class="line"><span>${new Date(s.fecha).toLocaleDateString('es-ES', {day: 'numeric', month: 'short', year: 'numeric'})}</span><span class="dots"></span><span><b>${fmt(s.total)}</b> · ${s.apto ? '<span style="color:var(--ok)">apto</span>' : '<span style="color:var(--ko)">no apto</span>'}</span></div>`).join('')}</div>`
+      : '<p class="small">Aún no has hecho ningún simulacro oficial. Aquí verás cómo evoluciona tu nota.</p>'}
+    ${red ? `<p class="muted">Además, ${plural(red, 'simulacro reducido', 'simulacros reducidos')} (no oficiales) que no cuentan en esta gráfica.</p>` : ''}
+    <h2>Datos</h2>
+    <div class="card">
+      <p><b>Exporta tu progreso</b> a un archivo para no perderlo si limpias el navegador.${WEB ? ' Cada dispositivo guarda el suyo: para pasarlo del ordenador al móvil (o al revés), exporta en uno e importa en el otro con «Combinar».' : ''}</p>
+      ${switchHTML('expBancos', UI.expBancos !== false, 'Incluir los bancos', 'Así puedes restaurarlo todo en otro navegador')}
+      <div class="actions"><button class="btn primary" data-act="exportar">Exportar JSON</button><button class="btn" data-act="importar">Importar…</button></div>
+      ${WEB ? '<div class="actions"><button class="btn" data-act="bloquear">Olvidar la contraseña en este dispositivo</button><span class="muted">La pedirá al volver a abrir. Tu progreso se queda.</span></div>' : ''}
+    </div>
+    <div class="card" style="margin-top:10px"><b>Tema</b><div class="field">${Object.entries(TEMAS_UI).map(([k, v]) => `<button class="chip" data-act="temaVisual" data-v="${k}" aria-pressed="${UI.tema === k}">${v.txt}</button>`).join('')}<span class="small">«Automático» sigue al sistema</span></div></div>
+    <div class="card" style="margin-top:10px"><b>Objetivo diario</b><div class="field">${[10, 20, 30, 50, 80].map(n => `<button class="chip" data-act="goal" data-v="${n}" aria-pressed="${UI.goal === n}">${n}</button>`).join('')}<span class="small">preguntas al día</span></div></div>
+    <div class="card" style="margin-top:10px"><div class="row"><b>Pruebas de la puntuación</b><span class="spacer"></span><button class="btn" data-act="tests">Ejecutar</button></div>
+      ${TESTS ? `<ul class="tests">${TESTS.map(t => `<li class="${t.ok ? 'pass' : 'fail'}">${t.ok ? '✓' : '✗'} ${esc(t.nombre)}${t.fallos.length ? ` — ${esc(t.fallos.join('; '))}` : ''}</li>`).join('')}</ul><p class="small">${TESTS.filter(t => t.ok).length} de ${TESTS.length} correctas.</p>` : '<p class="small">Comprueba los casos: todo bien, todo mal, todo en blanco, mezcla y anuladas.</p>'}</div>
+    <div class="actions" style="margin-top:16px">${holdHTML('borrarProgreso', 'Mantén para borrar todo el progreso', 'Borrando…', 2500, 'danger')}<span class="muted">No borra los bancos.</span></div>`;
+};
+function simChart(sims) {
+  const W = 640, H = 200, L = 34, R = 12, T = 12, B = 26, n = sims.length;
+  const x = i => n === 1 ? (L + W - R) / 2 : L + i * (W - L - R) / (n - 1);
+  const y = v => T + (1 - Math.max(0, Math.min(100, v)) / 100) * (H - T - B);
+  const pts = sims.map((s, i) => `${x(i).toFixed(1)},${y(s.total).toFixed(1)}`).join(' ');
+  return `<svg class="chart card" viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolución de la nota de los simulacros oficiales">
+    ${[0, 50, 100].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 50 ? 'var(--ko)' : 'var(--line)'}" stroke-dasharray="${v === 50 ? '4 4' : ''}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`).join('')}
+    ${n > 1 ? `<polyline points="${pts}" fill="none" stroke="var(--ink)" stroke-width="2.5" stroke-linejoin="round"/>` : ''}
+    ${sims.map((s, i) => `<circle cx="${x(i)}" cy="${y(s.total)}" r="5" fill="${s.apto ? 'var(--ok)' : 'var(--ko)'}" stroke="var(--card)" stroke-width="2"><title>${new Date(s.fecha).toLocaleDateString('es-ES')}: ${fmt(s.total)}</title></circle>`).join('')}
+    <text x="${W - R}" y="${H - 6}" text-anchor="end">${plural(n, 'simulacro', 'simulacros')} · línea roja = 50</text></svg>`;
+}
+
+/* ---------- Sesión: la ficha de pregunta ---------- */
+VIEWS.sesion = (o = {}) => {
+  if (!S) { route = 'inicio'; return VIEWS.inicio(); }
+  if (S.done) { route = 'resultado'; return VIEWS.resultado(); }
+  const part = curPart();
+  if (S.between) {
+    const nx = S.parts[S.p + 1], nsup = new Set(nx.items.map(id => { const q = LIB.byId.get(id); return q ? q.bank + q.sup : id; })).size;
+    return `<div class="between"><p class="small">${esc(S.title)}</p><h1>${esc(part.title)} entregada</h1>
+      <p>Respira. Ahora vienen ${plural(nx.items.length, 'pregunta', 'preguntas')} de ${plural(nsup, 'supuesto', 'supuestos')} y tienes ${nx.timeMin} minutos. El reloj empieza cuando pulses.</p>
+      <div class="actions" style="justify-content:center"><button class="btn big primary" data-act="startPart" data-fid="primary">Empezar la ${esc(nx.title.toLowerCase())}</button></div></div>`;
+  }
+  const id = curId(), q = LIB.byId.get(id), total = part.items.length, last = S.i === total - 1;
+  const mine = S.ans[id] || null, checked = S.immediate && S.checked[id];
+  const done = S.immediate ? Object.keys(S.checked).filter(k => part.items.includes(k)) : null;
+  const okN = done ? done.filter(k => S.ans[k] && S.ans[k] === LIB.byId.get(k)?.oficial).length : 0;
+  const right = part.endAt ? `<span class="timer" id="timer" aria-label="Tiempo restante">${fmtTime(part.endAt - Date.now())}</span>`
+    : S.immediate ? `<span class="chip" style="margin-left:auto">✓ ${okN} · ✗ ${done.length - okN}</span>` : '<span class="spacer"></span>';
+  const bar = `<div class="sbar"><button class="btn ghost" data-act="salir" aria-label="Salir de la sesión" style="padding:6px 10px">✕</button>
+    <span class="chip">${esc(S.title)}${S.parts.length > 1 ? ' · ' + esc(part.title) : ''}</span><span>${S.i + 1} de ${total}</span>${right}</div>
+    <div class="progress" aria-hidden="true"><i style="transform:scaleX(${(S.i + 1) / total})"></i></div>`;
+  if (!q) return bar + `<div class="pile only"><article class="fcard" id="card" tabindex="-1"><p class="qtext">Esta pregunta (${esc(id)}) ya no está en tus bancos.</p><p class="small">Se trata como en blanco y no puntúa.</p>
+      <div class="actions"><button class="btn" data-act="prev" ${S.i ? '' : 'disabled'}>←</button><span class="spacer"></span>${primaryHTML(last, false, true)}</div></article></div>`;
+  const sup = supuestoDe(q);
+  const caseHTML = q.parte === 'supuesto' ? (sup ? `<details class="case" id="case" ${S.caseClosed ? '' : 'open'}><summary><span>Supuesto ${q.sup}${supTitulo(q) ? ' · <span style="font-weight:500">' + esc(supTitulo(q)) + '</span>' : ''}</span><span class="small"></span></summary>
+      <div class="body" id="caseBody" tabindex="0" aria-label="Enunciado del supuesto ${q.sup}">${mdToHtml(sup.enunciado)}</div></details>`
+    : `<div class="warn-box" style="margin-bottom:14px">Falta el enunciado del supuesto ${q.sup}: carga ${esc(q.bank)}_supuestos.md en Bancos.</div>`) : '';
+  return `${bar}${caseHTML}
+    <div class="pile ${total - S.i <= 2 ? 'last' : ''}${last ? ' only' : ''}"><article class="fcard${o.kb ? ' kbd' : ''}" id="card" tabindex="-1" aria-label="Pregunta ${S.i + 1} de ${total}">
+      <div class="meta">${metaHTML(q)}</div>
+      <p class="qtext">${esc(q.pregunta)}</p>
+      <div class="opts" role="group" aria-label="Opciones">${optsHTML(q, {mine, checked, interactive: !part.delivered})}</div>
+      <div class="reveal ${checked ? 'open' : ''}" id="reveal"><div>${checked ? explainHTML(q, mine, {valor: part.valor}) : ''}</div></div>
+      <div class="actions">
+        <button class="btn" data-act="prev" data-fid="prev" ${S.i ? '' : 'disabled'} aria-label="Anterior">←</button>
+        <button class="btn" data-act="blank" data-fid="blank" ${checked ? 'disabled' : ''}>En blanco</button>
+        <button class="btn" data-act="flag" data-fid="flag" aria-pressed="${!!S.flags[id]}">⚑ Revisar</button>
+        <span class="spacer"></span>${primaryHTML(last, checked, !!mine)}
+      </div></article></div>
+    <div class="hint keys">${letras(q).map(L => `<kbd>${L}</kbd>`).join('')} responder · <kbd>←</kbd><kbd>→</kbd> moverse · <kbd>Enter</kbd> ${S.immediate ? 'comprobar / siguiente' : 'siguiente'} · <kbd>M</kbd> marcar para revisar</div>
+    ${S.immediate ? '' : sheetHTML()}`;
+};
+function primaryHTML(last, checked, answered) {
+  if (S.immediate) {
+    if (!checked) return `<button class="btn primary" data-act="check" data-fid="primary" ${answered ? '' : 'disabled'}>Comprobar</button>`;
+    return `<button class="btn primary" data-act="${last ? 'finish' : 'next'}" data-fid="primary">${last ? 'Terminar' : 'Siguiente'}</button>`;
+  }
+  if (!last) return `<button class="btn primary" data-act="next" data-fid="primary">Siguiente</button>`;
+  return holdHTML('deliver', S.p < S.parts.length - 1 ? 'Mantén para entregar la parte' : 'Mantén para entregar', 'Entregando…', 2000);
+}
+function sheetHTML() {
+  const part = curPart(), n = part.items.length;
+  const resp = part.items.filter(id => S.ans[id]).length, marc = part.items.filter(id => S.flags[id]).length;
+  let prev = null, supIdx = 0;
+  const cells = part.items.map((id, i) => {
+    const q = LIB.byId.get(id); let sep = '';
+    const key = !q ? '?' : q.parte === 'supuesto' ? q.bank + '#' + q.sup : q.bloque;
+    if (key !== prev && part.key !== 'p') { sep = `<span class="sep">${!q ? '' : q.parte === 'supuesto' ? `Supuesto ${++supIdx}` : q.bloque === 'C' ? 'Común' : 'Específica'}</span>`; prev = key; }
+    const cls = [S.ans[id] && 'a', S.flags[id] && 'f', i === S.i && 'c'].filter(Boolean).join(' ');
+    return `${sep}<button class="${cls}" data-act="goto" data-i="${i}" aria-label="Pregunta ${i + 1}${S.ans[id] ? ', respondida' : ''}${S.flags[id] ? ', marcada' : ''}">${i + 1}</button>`;
+  }).join('');
+  return `<details class="card sheet" id="sheet" ${S.sheetOpen ? 'open' : ''}><summary style="cursor:pointer;display:flex;gap:10px;flex-wrap:wrap;align-items:center"><b>Hoja de respuestas</b><span class="small">${resp} de ${n} respondidas · ${marc} marcadas para revisar</span></summary>
+    <div class="grid80">${cells}</div>
+    <div class="actions"><span class="small">${n - resp ? plural(n - resp, 'sin responder', 'sin responder') + ' (cuentan como blanco)' : 'Todas respondidas'}</span><span class="spacer"></span>${holdHTML('deliver', `Mantén para entregar ${esc(part.title.toLowerCase())}`, 'Entregando…', 2000)}</div></details>`;
+}
+
+/* ---------- Resultado ---------- */
+let RF = 'todas', printed = false;
+VIEWS.resultado = () => {
+  if (!S || !S.done) { route = 'inicio'; return VIEWS.inicio(); }
+  const r = S.result;
+  let head;
+  if (S.kind === 'simulacro') {
+    const fechas = new Date(S.finishedAt).toLocaleDateString('es-ES', {day: 'numeric', month: 'long', year: 'numeric'});
+    const line = (lbl, x, v) => `<div class="line"><span>${lbl} · ${x.aciertos} ✓ ${x.fallos} ✗ ${x.blancos} —</span><span class="dots"></span><span>${fmt(v)}</span></div>`;
+    const supLines = r.supuestos.map((x, i) => { const q = LIB.byId.get(r.supIds[i]); return line(`Supuesto ${i + 1}${q ? ` (${esc(bankName(bankByPrefix(q.bank) || {org: q.bank}))} S${q.sup})` : ''}`, x, x.puntos); }).join('');
+    const mejora = S.official && S.mejorAnterior != null ? (r.total > S.mejorAnterior ? `Tu mejor nota hasta ahora · +${fmt(r.total - S.mejorAnterior)}` : `Tu mejor nota sigue siendo ${fmt(S.mejorAnterior)}`) : S.official ? 'Tu primer simulacro oficial' : '';
+    head = `<article class="ticket ${printed || reduceMotion() ? '' : 'print'}" id="ticket">
+      <div class="head">${S.official ? '' : '<span class="stamp unofficial">NO OFICIAL · REDUCIDO</span>'}<div class="small">${esc(S.title)} · ${fechas}</div>
+        <div class="num total">${fmt(r.total)}<small> /${fmt(r.maximo, 0)}</small></div>
+        <div class="stamp ${r.apto ? '' : 'no'}">${r.apto ? 'APTO' : 'NO APTO'}</div>
+        ${mejora ? `<div class="small" style="margin-top:10px">${mejora}</div>` : ''}</div>
+      <div class="sec"><span>Parte 1 · test</span><span class="num" style="letter-spacing:0">${fmt(r.p1.puntos)} / ${fmt(r.p1.maximo, 0)}</span></div>
+      ${line('Común', r.comun, r.comun.puntos)}${line('Específica', r.especifica, r.especifica.puntos)}
+      <div class="${r.p1.aprobada ? 'okline' : 'koline'}">${r.p1.aprobada ? '✓' : '✗'} mínimo de ${fmt(r.p1.minimo, r.p1.minimo % 1 ? 2 : 0)} ${r.p1.aprobada ? 'superado' : 'no alcanzado'}</div>
+      ${r.p2.existe ? `<div class="sec"><span>Parte 2 · supuestos</span><span class="num" style="letter-spacing:0">${fmt(r.p2.puntos)} / ${fmt(r.p2.maximo, 0)}</span></div>${supLines}
+        <div class="${r.p2.computa && r.p2.aprobada ? 'okline' : 'koline'}">${!r.p2.computa ? '✗ No computa: la parte 2 solo cuenta si apruebas la parte 1' : r.p2.aprobada ? `✓ mínimo de ${fmt(r.p2.minimo, r.p2.minimo % 1 ? 2 : 0)} superado` : `✗ mínimo de ${fmt(r.p2.minimo, r.p2.minimo % 1 ? 2 : 0)} no alcanzado`}</div>` : '<div class="sec"><span>Parte 2 · supuestos</span><span>sin supuestos</span></div>'}
+      <div class="sec" style="border-top:1px dashed var(--line);padding-top:14px"><span>Total${r.p2.existe && !r.p2.computa ? ' (solo parte 1)' : ''}</span><span class="num" style="letter-spacing:0">${fmt(r.total)}</span></div>
+      <p class="muted" style="margin-top:10px">Fallo −1/3 de acierto · blanco 0 · anuladas sin puntuar · hace falta ${fmt(r.minimoTotal, r.minimoTotal % 1 ? 2 : 0)} y los dos mínimos.</p></article>`;
+  } else {
+    const nota = r.puntuables ? r.netos / r.puntuables * 10 : 0;
+    head = `<p class="small">${esc(S.title)}</p><h1>${r.aciertos} de ${r.puntuables} bien</h1>
+      <div class="summary"><div class="card"><div class="num" style="color:var(--ok)">${r.aciertos}</div><div class="small">aciertos</div></div><div class="card"><div class="num" style="color:var(--ko)">${r.fallos}</div><div class="small">fallos</div></div>
+        <div class="card"><div class="num">${r.blancos}</div><div class="small">en blanco</div></div><div class="card"><div class="num">${fmt(nota)}</div><div class="small">nota sobre 10 (con −1/3)</div></div></div>
+      <p class="small">Netos: ${fmt(r.netos)} = ${r.aciertos} − ${r.fallos}/3.${S.scored.length < S.parts[0].items.length ? ` Terminaste antes: se puntúan las ${S.scored.length} que respondiste.` : ''}</p>`;
+  }
+  const items = S.scored.map((id, i) => ({id, i, q: LIB.byId.get(id)})).filter(x => x.q);
+  const filt = {todas: () => true, falladas: x => S.ans[x.id] && S.ans[x.id] !== x.q.oficial && !x.q.anulada, blanco: x => !S.ans[x.id], marcadas: x => S.flags[x.id], dudando: x => P.q[x.id]?.dud, bien: x => S.ans[x.id] === x.q.oficial};
+  const n = k => items.filter(filt[k]).length;
+  const list = items.filter(filt[RF]);
+  return `${head}
+    <div class="actions" style="justify-content:center"><button class="btn primary" data-act="cerrarResultado">Volver al inicio</button>${S.kind === 'simulacro' ? '<button class="btn" data-go="simulacro">Otro simulacro</button>' : ''}</div>
+    <h2>Corrección</h2>
+    <div class="row">${[['todas', 'Todas'], ['falladas', 'Falladas'], ['blanco', 'En blanco'], ['bien', 'Acertadas'], ['marcadas', 'Marcadas'], ['dudando', 'Dudando']].map(([k, l]) => `<button class="chip" data-act="rf" data-v="${k}" aria-pressed="${RF === k}">${l} · ${n(k)}</button>`).join('')}</div>
+    ${list.length ? list.map(({id, i, q}) => `<div class="review-item"><article class="fcard"><div class="meta"><b>${i + 1}.</b>${metaHTML(q)}${S.flags[id] ? '<span class="tag dud">⚑ marcada</span>' : ''}</div>
+      ${q.parte === 'supuesto' && supuestoDe(q) ? `<details class="more" style="margin:-6px 0 10px"><summary>Enunciado del supuesto ${q.sup}</summary><div class="case" style="margin-top:8px"><div class="body">${mdToHtml(supuestoDe(q).enunciado)}</div></div></details>` : ''}
+      <p class="qtext">${esc(q.pregunta)}</p><div class="opts">${optsHTML(q, {mine: S.ans[id] || null, checked: true})}</div>${explainHTML(q, S.ans[id] || null, {valor: S.parts.find(p => p.items.includes(id))?.valor})}</article></div>`).join('')
+      : '<p class="small" style="margin-top:12px">Nada en este filtro.</p>'}`;
+};
+
+/* ==========================================================================
+   10. NAVEGACIÓN, PESTAÑAS Y RENDER
+   ========================================================================== */
+let route = 'inicio';
+const tabs = $('#tabs'), activeList = tabs.querySelector('.active');
+function clipTabs(instant) {
+  const btn = tabs.querySelector(`[data-go="${route === 'informe' ? 'repaso' : route}"]`);   // el informe cuelga de Repaso
+  activeList.style.transition = instant ? 'none' : '';
+  if (!btn) { activeList.style.clipPath = 'inset(0 100% 0 0)'; return; }
+  const r = tabs.getBoundingClientRect(), b = btn.getBoundingClientRect();
+  activeList.style.clipPath = `inset(0 ${(r.right - b.right).toFixed(1)}px 0 ${(b.left - r.left).toFixed(1)}px round 99px)`;
+  tabs.querySelectorAll('[data-go]').forEach(x => x === btn ? x.setAttribute('aria-current', 'page') : x.removeAttribute('aria-current'));
+}
+function go(r, {instant = false} = {}) {
+  if (r === 'sesion' && !S) r = 'inicio';
+  route = r; render(); clipTabs(instant);
+  window.scrollTo(0, 0);
+  if (r !== 'sesion') $('#main').focus({preventScroll: true});
+}
+function render(o = {}) {
+  const fid = document.activeElement?.dataset?.fid;
+  const caseScroll = $('#caseBody')?.scrollTop, caseKey = $('#caseBody') ? $('#case summary')?.textContent : null;
+  document.body.classList.toggle('focus', route === 'sesion' && S && !S.done);
+  $('#main').innerHTML = (VIEWS[route] || VIEWS.inicio)(o);
+  if (route === 'resultado') printed = true;
+  // Tras pintar: mantener el foco, el scroll del enunciado y las transiciones (solo si no fue con teclado)
+  const want = o.focus || fid;
+  if (want) $(`[data-fid="${want}"]`)?.focus({preventScroll: true});
+  else if (route === 'sesion' && o.kb !== undefined) $('#card')?.focus({preventScroll: true});
+  const cb = $('#caseBody');
+  if (cb && caseScroll != null && $('#case summary')?.textContent === caseKey) cb.scrollTop = caseScroll;
+  if (o.reveal && !reduceMotion()) { const rv = $('#reveal'); if (rv) { rv.classList.remove('open'); void rv.offsetWidth; rv.classList.add('open'); } }
+  if (o.enter && !reduceMotion()) { const c = $('#card'); if (c) { c.classList.add('in'); void c.offsetWidth; c.classList.remove('in'); } }
+}
+
+/* ==========================================================================
+   11. ACCIONES (delegadas)
+   ========================================================================== */
+const ACT = {
+  pick: () => $('#fileInput').click(),
+  repasoDue: () => startRepaso('due'),
+  repasoAll: () => startRepaso('all'),
+  rapida: () => { const pool = shuffle(practicePool({...UI.practica, temas: [...TEMAS], sinBancos: []})).slice(0, 20); if (pool.length) startSession(newSession({kind: 'practica', title: 'Práctica rápida', immediate: true, parts: [{key: 'p', title: 'Práctica', valor: 1, items: pool.map(q => q.id)}]})); },
+  tema: el => { const t = el.dataset.t, s = new Set(UI.practica.temas); s.has(t) ? s.delete(t) : s.add(t); UI.practica.temas = [...s]; saveUI(); render(); },
+  temasSet: el => {
+    const v = el.dataset.v, st = temaStats();
+    UI.practica.temas = v === 'C' ? [...TEMAS_C] : v === 'T' ? [...TEMAS_T] : v === 'todos' ? [...TEMAS, ...(UI.filters.fuera ? [FDT] : [])] : v === 'flojos' ? st.filter(t => t.pct != null && t.pct < 60).map(t => t.tema) : [];
+    saveUI(); render();
+    if (v === 'flojos' && !UI.practica.temas.length) toast('!', 'Aún no hay temas flojos', 'Necesitas responder algunas preguntas antes');
+  },
+  bancoPractica: el => { const p = el.dataset.p, s = new Set(UI.practica.sinBancos); s.has(p) ? s.delete(p) : s.add(p); UI.practica.sinBancos = [...s]; saveUI(); render(); },
+  nPractica: el => { UI.practica.n = +el.dataset.v; saveUI(); render(); },
+  orden: el => { UI.practica.orden = el.dataset.v; saveUI(); render(); },
+  startPractica: () => startPractica(),
+  simOficial: () => startSimulacro(true),
+  simReducido: () => startSimulacro(false),
+  // e.detail === 0: «clic» hecho con el teclado (Enter/Espacio sobre el botón) → sin animación
+  answer: (el, e) => answer(el.dataset.k, e.detail === 0),
+  check: (el, e) => check(e.detail === 0),
+  blank: (el, e) => blank(e.detail === 0),
+  flag: () => { const id = curId(); S.flags[id] = !S.flags[id]; saveSession(); render(); },
+  prev: (el, e) => moveTo(S.i - 1, e.detail === 0),
+  next: (el, e) => next(e.detail === 0),
+  finish: () => finish(),
+  goto: el => { S.i = +el.dataset.i; saveSession(); render({kb: true}); $('#card')?.scrollIntoView({block: 'start'}); },
+  startPart: () => { S.between = false; S.p++; S.i = 0; const p = curPart(); if (p.timeMin) p.endAt = Date.now() + p.timeMin * 60000; saveSession(); render(); window.scrollTo(0, 0); },
+  doubt: el => { const id = el.dataset.id, on = el.getAttribute('aria-pressed') !== 'true'; setDoubt(id, on); el.setAttribute('aria-pressed', on); if (on) toast('?', 'Marcada como dudosa', 'Vuelve a tu repaso'); },
+  salir: () => salirDialog(),
+  cerrarResultado: () => { S = null; store.del(K.sesion); go('inicio'); },
+  rf: el => { RF = el.dataset.v; render(); },
+  anuladas: () => anuladasDialog(),
+  verInforme: () => reportDialog(LAST_REPORT),
+  cerrarInforme: () => { LAST_REPORT = null; render(); },
+  exportar: () => exportar(),
+  importar: () => $('#importInput').click(),
+  goal: el => { UI.goal = +el.dataset.v; saveUI(); render(); },
+  cicloTema: () => setTheme({auto: 'light', light: 'dark', dark: 'auto'}[UI.tema] || 'auto'),
+  temaVisual: el => { setTheme(el.dataset.v); render(); },
+  tests: () => { TESTS = probarPuntuacion(); render(); },
+  infAlcance: el => { UI.informe.alcance = el.dataset.v; saveUI(); render(); },
+  infTema: el => { const t = el.dataset.t, s = new Set(UI.informe.temas); s.has(t) ? s.delete(t) : s.add(t); UI.informe.temas = [...s]; saveUI(); render(); },
+  infTemas: el => {
+    const v = el.dataset.v, inf = v === 'flojos' ? informeDe({...informeOp(), temas: []}) : null;
+    UI.informe.temas = v === 'C' ? [...TEMAS_C] : v === 'T' ? [...TEMAS_T] : inf ? [...inf.temas, ...inf.pocos].filter(t => t.pct < 60).map(t => t.tema) : [];
+    saveUI(); render();
+    if (v === 'flojos' && !UI.informe.temas.length) toast('!', 'Aún no hay temas flojos', 'Ninguno baja del 60 % de aciertos');
+  },
+  infFormato: el => { UI.informe.formato = el.dataset.v; saveUI(); render(); },
+  infDescargar: () => informeDescargar(),
+  infCopiar: () => informeCopiar(),
+  infImprimir: () => window.print(),
+  dlgClose: () => $('#dlg').close()
+};
+/* Acciones que se confirman manteniendo pulsado */
+const HOLD = {
+  deliver: () => deliverPart(false),
+  discard: () => { S = null; store.del(K.sesion); toast('−', 'Sesión descartada', 'No se ha guardado nada de ella'); render(); },
+  removeBank: el => { const raw = store.get(K.bancos, {}), p = el.dataset.p;
+    // Un banco de la web que quitas no vuelve a descargarse solo (se recupera desde Bancos)
+    if (raw[p]?.webCsv || raw[p]?.webMd) { UI.webQuitados = [...new Set([...(UI.webQuitados || []), p])]; saveUI(); }
+    delete raw[p]; store.set(K.bancos, raw); buildLibrary(); toast('−', 'Banco quitado', 'Tu progreso con sus preguntas se conserva'); render(); },
+  borrarProgreso: () => { P = {v: 1, q: {}, days: {}, sims: []}; saveProgress(); toast('−', 'Progreso borrado', 'Los bancos siguen cargados'); render(); },
+  entregarYa: () => { $('#dlg').close(); go('sesion'); deliverPart(false); }
+};
+const CHG = {
+  'f-fuera': el => { UI.filters.fuera = el.checked; if (!el.checked) UI.practica.temas = UI.practica.temas.filter(t => t !== FDT); saveUI(); render(); },
+  'f-reservas': el => { UI.filters.reservas = el.checked; saveUI(); render(); },
+  'f-dudosas': el => { UI.filters.sinDudosas = el.checked; saveUI(); render(); },
+  inmediata: el => { UI.practica.inmediata = el.checked; saveUI(); },
+  supPractica: el => { UI.practica.supuestos = el.checked; saveUI(); render(); },
+  inmRepaso: el => { UI.repaso.inmediata = el.checked; saveUI(); },
+  nPractica: el => { UI.practica.n = Math.max(0, parseInt(el.value, 10) || 0); saveUI(); render(); },
+  toggleBank: el => { const raw = store.get(K.bancos, {}); if (raw[el.dataset.p]) raw[el.dataset.p].enabled = el.checked; store.set(K.bancos, raw); buildLibrary(); render(); },
+  expBancos: el => { UI.expBancos = el.checked; saveUI(); },
+  infDudas: el => { UI.informe.dudas = el.checked; saveUI(); render(); }
+};
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]');
+  if (g) { e.preventDefault(); go(g.dataset.go); return; }
+  const a = e.target.closest('[data-act]');
+  if (a && !a.disabled && ACT[a.dataset.act]) { e.preventDefault(); ACT[a.dataset.act](a, e); }
+});
+document.addEventListener('change', e => { const a = e.target.closest('[data-change]'); if (a && CHG[a.dataset.change]) CHG[a.dataset.change](a, e); });
+document.addEventListener('toggle', e => {
+  if (!S) return;
+  if (e.target.id === 'case') { S.caseClosed = !e.target.open; saveSession(); }
+  if (e.target.id === 'sheet') { S.sheetOpen = e.target.open; saveSession(); }
+}, true);
+
+/* Mantener pulsado: avanza lento y lineal; soltar antes lo cancela al instante */
+let holding = null;
+function holdStart(b) { holdCancel(); holding = b; b.classList.add('holding'); b._t = setTimeout(() => { b.classList.remove('holding'); holding = null; HOLD[b.dataset.hold]?.(b); }, +b.dataset.ms || 1500); }
+function holdCancel() { if (!holding) return; clearTimeout(holding._t); holding.classList.remove('holding'); holding = null; }
+document.addEventListener('pointerdown', e => { const b = e.target.closest('[data-hold]'); if (b && e.button === 0) holdStart(b); });
+document.addEventListener('pointerup', holdCancel);
+document.addEventListener('pointercancel', holdCancel);
+document.addEventListener('pointerout', e => { if (holding && e.target.closest('[data-hold]') === holding && !holding.contains(e.relatedTarget)) holdCancel(); });
+document.addEventListener('contextmenu', e => { if (e.target.closest('[data-hold]')) e.preventDefault(); });
+document.addEventListener('keyup', e => { if ((e.key === ' ' || e.key === 'Enter') && holding) holdCancel(); });
+
+/* Teclado. Nada de esto se anima. */
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const hb = e.target.closest?.('[data-hold]');
+  if (hb && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); if (!e.repeat) holdStart(hb); return; }
+  if (e.target.closest?.('input, textarea, select') || $('#dlg').open) return;
+  if (route === 'inicio') {
+    const m = {'1': 'practicar', '2': 'simulacro', '3': 'repaso', '4': 'bancos'}[e.key];
+    if (m) { go(m, {instant: true}); return; }
+    if (e.key === 'Enter' && !e.target.closest('button, a, summary')) { const d = $('.deck .front'); if (d && !d.disabled) { e.preventDefault(); d.click(); } }
+    return;
+  }
+  if (route !== 'sesion' || !S || S.done) return;
+  if (S.between) { if (e.key === 'Enter' && !e.target.closest('button')) { e.preventDefault(); ACT.startPart(); } return; }
+  const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  if ('ABCD'.includes(k) && k.length === 1) { e.preventDefault(); answer(k, true); }
+  else if (k === 'ArrowRight') { e.preventDefault(); moveTo(S.i + 1, true); }
+  else if (k === 'ArrowLeft') { e.preventDefault(); moveTo(S.i - 1, true); }
+  else if (k === 'Enter' && (!e.target.closest('button, a, summary') || e.target.closest('.opt'))) { e.preventDefault(); next(true); }
+  else if (k === 'M') { e.preventDefault(); ACT.flag(); }
+});
+
+/* Reloj de los simulacros: si se acaba el tiempo, se entrega solo */
+setInterval(() => {
+  if (!S || S.done || S.between) return;
+  const part = curPart(); if (!part.endAt) return;
+  const left = part.endAt - Date.now();
+  if (left <= 0) { deliverPart(true); return; }
+  const el = $('#timer');
+  if (el) { el.textContent = fmtTime(left); el.classList.toggle('low', left < 5 * 60000); }
+}, 1000);
+
+/* ==========================================================================
+   12. CARGA DE ARCHIVOS (botón o arrastrar y soltar en cualquier parte)
+   ========================================================================== */
+/* Mete en «raw» un archivo ya leído y devuelve su línea del informe.
+   «huella» solo llega en los bancos descargados de la web: así se sabe si han cambiado. */
+function ingestFile(raw, name, text, n, huella) {
+  if (/\.csv$/i.test(name)) {
+    const prefix = name.replace(/\.csv$/i, '');
+    const p = parseBankCSV(prefix, text);
+    if (p.fatal) return {file: name, error: p.fatal};
+    const old = raw[prefix] || {};
+    raw[prefix] = {...old, ...(huella ? {webCsv: huella} : {}), csv: text, fileCsv: name, loadedAt: old.loadedAt || Date.now() + n, enabled: old.enabled !== false};
+    return {file: name, prefix, kind: 'csv', replaced: !!old.csv};
+  }
+  // Solo los *_supuestos.md son de la app; otros .md (revisiones, notas…) se ignoran sin error
+  if (!/_supuestos\.md$/i.test(name)) return {file: name, info: 'no es un archivo de supuestos; se ignora.'};
+  const prefix = name.replace(/_supuestos\.md$/i, '');
+  const sup = parseSupuestosMD(text);
+  if (!Object.keys(sup).length) return {file: name, error: 'No encuentro ningún «## Supuesto N» con su «### Enunciado completo».'};
+  const old = raw[prefix] || {};
+  raw[prefix] = {...old, ...(huella ? {webMd: huella} : {}), md: text, fileMd: name, loadedAt: old.loadedAt || Date.now() + n, enabled: old.enabled !== false};
+  return {file: name, prefix, kind: 'md', sups: Object.keys(sup)};
+}
+async function loadFiles(list) {
+  const files = [...list], raw = store.get(K.bancos, {}), out = [], touched = new Set();
+  for (const f of files) {
+    if (!/\.(csv|md)$/i.test(f.name)) { out.push({file: f.name, error: 'No es .csv ni .md; se ignora.'}); continue; }
+    let text;
+    try { text = await f.text(); } catch (e) { out.push({file: f.name, error: 'No se pudo leer el archivo.'}); continue; }
+    const r = ingestFile(raw, f.name, text, out.length);
+    out.push(r); if (r.prefix) touched.add(r.prefix);
+  }
+  // Si vuelves a cargar a mano un banco de la web que habías quitado, deja de estar quitado
+  if (UI.webQuitados?.some(p => touched.has(p))) { UI.webQuitados = UI.webQuitados.filter(p => !touched.has(p)); saveUI(); }
+  const guardado = store.set(K.bancos, raw);
+  buildLibrary();
+  const bancos = [...touched].map(bankByPrefix).filter(Boolean);
+  const malas = bancos.reduce((a, b) => a + b.invalid.length, 0), dups = bancos.reduce((a, b) => a + b.dups.length, 0), errores = out.filter(x => x.error).length;
+  LAST_REPORT = {out, bancos: bancos.map(b => b.prefix), guardado,
+    resumen: `${plural(bancos.length, 'banco cargado', 'bancos cargados')}${malas ? ` · ${plural(malas, 'fila inválida', 'filas inválidas')}` : ''}${dups ? ` · ${plural(dups, 'id repetido ignorado', 'ids repetidos ignorados')}` : ''}${errores ? ` · ${plural(errores, 'archivo con error', 'archivos con error')}` : ''}${guardado ? '' : ' · no se pudo guardar en el navegador'}`};
+  if (route === 'inicio' || route === 'bancos') render(); else go('bancos');
+  reportDialog(LAST_REPORT);
+}
+$('#fileInput').addEventListener('change', e => { if (e.target.files.length) loadFiles(e.target.files); e.target.value = ''; });
+let dragDepth = 0;
+const hasFiles = e => [...(e.dataTransfer?.types || [])].includes('Files');
+document.addEventListener('dragenter', e => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $('#dropOverlay').classList.add('on'); $$('.drop').forEach(d => d.classList.add('over')); });
+document.addEventListener('dragover', e => { if (hasFiles(e)) e.preventDefault(); });
+document.addEventListener('dragleave', e => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; $('#dropOverlay').classList.remove('on'); $$('.drop').forEach(d => d.classList.remove('over')); } });
+document.addEventListener('drop', e => {
+  if (!hasFiles(e)) return; e.preventDefault(); dragDepth = 0;
+  $('#dropOverlay').classList.remove('on'); $$('.drop').forEach(d => d.classList.remove('over'));
+  if (S && !S.done && route === 'sesion') return toast('!', 'Termina antes la sesión', 'Puedes cargar bancos desde Bancos');
+  loadFiles(e.dataTransfer.files);
+});
+
+/* Bancos publicados junto a la app (GitHub Pages), cifrados con tu contraseña por tools/cifrar-bancos.mjs.
+   datos/indice.json lista cada banco con su huella: solo se descarga lo que ha cambiado desde la última vez.
+   La contraseña no se guarda; se guarda la clave que sale de ella, así cada dispositivo la pide una sola vez.
+   Con doble clic (file://) no se usa nada de esto. */
+const WEB = /^https?:$/.test(location.protocol);
+const CLAVE = 'fichas.clave.v1';
+let SYNCING = WEB && !Object.keys(store.get(K.bancos, {})).length;
+const b64 = {de: s => Uint8Array.from(atob(s), c => c.charCodeAt(0)), a: u => btoa(String.fromCharCode(...u))};
+const leerIndice = () => fetch('datos/indice.json', {cache: 'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null);
+const importarAES = raw => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
+/* Cada archivo es iv (12 bytes) + cifrado; si la clave no es la buena, falla */
+const descifrar = (key, buf) => { const u = new Uint8Array(buf); return crypto.subtle.decrypt({name: 'AES-GCM', iv: u.subarray(0, 12)}, key, u.subarray(12)); };
+async function claveDesdeContrasena(idx, pass) {
+  const base = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass.normalize('NFC')), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits({name: 'PBKDF2', hash: 'SHA-256', salt: b64.de(idx.kdf.sal), iterations: idx.kdf.iteraciones}, base, 512);
+  const raw = new Uint8Array(bits).slice(0, 32), key = await importarAES(raw);
+  await descifrar(key, b64.de(idx.verificador));
+  store.set(CLAVE, {sal: idx.kdf.sal, aes: b64.a(raw)});
+  return key;
+}
+async function claveGuardada(idx) {
+  const c = store.get(CLAVE, null);
+  if (!c || (idx && c.sal !== idx.kdf.sal)) return null;   // otra contraseña en la web: se vuelve a pedir
+  try { return await importarAES(b64.de(c.aes)); } catch (e) { return null; }
+}
+/* Pantalla de entrada: tapa la app hasta que la contraseña descifra el índice */
+function pedirClave(idx) {
+  document.documentElement.classList.add('bloqueada');
+  const el = document.createElement('div');
+  el.className = 'candado';
+  el.innerHTML = `<form class="card" novalidate><img src="icons/icon-192.png" width="56" height="56" alt=""><h1>Fichas</h1>
+    <p class="small">Escribe la contraseña para entrar. Este dispositivo la recordará.</p>
+    <input type="password" name="pass" autocomplete="current-password" aria-label="Contraseña" placeholder="Contraseña" required>
+    <p class="err small" role="alert"></p><button class="btn primary" type="submit">Entrar</button></form>`;
+  document.body.append(el);
+  const form = el.querySelector('form'), input = form.pass, err = el.querySelector('.err'), btn = form.querySelector('button');
+  input.focus();
+  return new Promise(ok => form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!input.value) return input.focus();
+    btn.disabled = true; btn.textContent = 'Comprobando…'; err.textContent = '';
+    try {
+      if (!crypto.subtle) throw new Error('Ábrela desde su dirección https para poder entrar.');
+      idx = idx || await leerIndice();
+      if (!idx) throw new Error('Sin conexión. La primera vez hace falta internet.');
+      const key = await claveDesdeContrasena(idx, input.value).catch(() => { throw new Error('Contraseña incorrecta.'); });
+      el.remove(); document.documentElement.classList.remove('bloqueada');
+      ok({idx, key});
+    } catch (x) { err.textContent = x.message; btn.disabled = false; btn.textContent = 'Entrar'; input.select(); }
+  }));
+}
+async function arrancarWeb() {
+  let idx = await leerIndice(), key = await claveGuardada(idx);
+  if (!key) ({idx, key} = await pedirClave(idx));
+  await syncWebBanks(idx, key);
+}
+async function syncWebBanks(idx, key) {
+  let cambios = false;
+  try {
+    const raw = store.get(K.bancos, {}), quitados = new Set(UI.webQuitados || []);
+    const prefijo = n => n.replace(/(_supuestos\.md|\.csv)$/i, '');
+    const pend = !idx ? [] : idx.archivos.filter(a => !quitados.has(prefijo(a.nombre)) && (raw[prefijo(a.nombre)] || {})[/\.csv$/i.test(a.nombre) ? 'webCsv' : 'webMd'] !== a.huella);
+    const textos = await Promise.all(pend.map(a => fetch('datos/' + encodeURIComponent(a.nombre) + '.enc', {cache: 'no-cache'})
+      .then(r => r.ok ? r.arrayBuffer() : null).then(b => b && descifrar(key, b)).then(t => t && new TextDecoder().decode(t)).catch(() => null)));
+    const out = pend.map((a, i) => textos[i] == null ? {file: a.nombre, error: 'No se pudo descargar.'} : ingestFile(raw, a.nombre, textos[i], idx.archivos.indexOf(a), a.huella));
+    const ok = out.filter(x => x.prefix).length;
+    if (ok) {
+      store.set(K.bancos, raw);
+      buildLibrary(); cambios = true;
+      toast('↓', 'Bancos actualizados', `${plural(ok, 'archivo descargado', 'archivos descargados')}${out.length > ok ? ` · ${out.length - ok} con error` : ''}`);
+    }
+  } catch (e) { /* sin conexión: se usa lo guardado */ }
+  // En mitad de una sesión no se repinta: los bancos nuevos se ven al salir
+  if (SYNCING || cambios) { SYNCING = false; if (route !== 'sesion') render(); }
+}
+ACT.recuperarWeb = async () => { UI.webQuitados = []; saveUI(); const idx = await leerIndice(), key = await claveGuardada(idx); if (idx && key) syncWebBanks(idx, key); };
+ACT.bloquear = () => { store.del(CLAVE); location.reload(); };
+
+/* ==========================================================================
+   13. DIÁLOGOS
+   ========================================================================== */
+function dialog(html) { const d = $('#dlg'); d.innerHTML = html; if (!d.open) d.showModal(); d.querySelector('[autofocus], button')?.focus(); }
+function reportDialog(rep) {
+  if (!rep) return;
+  const files = rep.out.map(x => x.error ? `<li><b>${esc(x.file)}</b>: <span style="color:var(--ko)">${esc(x.error)}</span></li>`
+    : x.info ? `<li><b>${esc(x.file)}</b>: <span style="color:var(--ink-3)">${esc(x.info)}</span></li>`
+    : `<li><b>${esc(x.file)}</b>: ${x.kind === 'csv' ? (x.replaced ? 'actualizado (tu progreso se mantiene)' : 'cargado') : `enunciados de ${plural(x.sups.length, 'supuesto', 'supuestos')}`}</li>`).join('');
+  const banks = rep.bancos.map(bankByPrefix).filter(Boolean).map(b => {
+    const lines = [];
+    if (!b.hasCsv) lines.push(`<span style="color:var(--warn)">Falta ${esc(b.prefix)}.csv: los enunciados esperan a su CSV.</span>`);
+    else {
+      lines.push(`${b.questions.length + b.twins.length + b.dups.length + b.invalid.length} filas: ${b.questions.length + b.twins.length} válidas${b.invalid.length ? `, <b style="color:var(--ko)">${b.invalid.length} inválidas</b>` : ''}${b.dups.length ? `, ${b.dups.length} con id repetido (ignoradas)` : ''}.`);
+      if (b.twins.length) lines.push(`<br><span style="color:var(--accent)">${twinsTxt(b)}</span>`);
+      if (b.supNums.length) lines.push(b.supSinEnunciado.length ? `<span style="color:var(--ko)">Sin enunciado: supuesto ${b.supSinEnunciado.join(', ')}.</span>` : `Supuestos ${b.supNums.join(' y ')} emparejados con su enunciado.`);
+      if (b.enunciadoSinPreguntas.length) lines.push(`<span style="color:var(--warn)">El .md trae el supuesto ${b.enunciadoSinPreguntas.join(', ')} sin preguntas en el CSV.</span>`);
+    }
+    const det = [...b.invalid.map(r => `Fila ${r.line} (${esc(r.id)}): ${esc(r.reasons.join('; '))}`), ...b.dups.map(d => `${esc(d.id)}: ya existe en ${esc(d.owner)}; se ignora`), ...b.warnings.map(esc)];
+    return `<li><b>${esc(bankName(b))}</b> (${b.turno}) — ${lines.join(' ')}${det.length ? `<ul class="small">${det.slice(0, 60).map(x => `<li>${x}</li>`).join('')}${det.length > 60 ? `<li>…y ${det.length - 60} más (en Bancos)</li>` : ''}</ul>` : ''}</li>`;
+  }).join('');
+  dialog(`<h3 id="dlgTitle">Informe de carga</h3><ul class="report small" style="padding-left:1.2em">${files}</ul>${banks ? `<ul class="report" style="padding-left:1.2em">${banks}</ul>` : ''}
+    ${rep.guardado ? '' : '<div class="storage-warn">No se pudo guardar en el navegador (¿sin espacio o bloqueado?). Los bancos funcionan mientras la pestaña siga abierta.</div>'}
+    <div class="actions"><button class="btn primary" data-act="dlgClose" autofocus>Entendido</button></div>`);
+}
+function anuladasDialog() {
+  const qs = LIB.banks.flatMap(b => b.questions.filter(q => q.anulada));
+  dialog(`<h3 id="dlgTitle">Preguntas anuladas (${qs.length})</h3><p class="small">No puntúan y no salen en los tests.</p>
+    ${qs.map(q => `<div class="review-item"><article class="fcard"><div class="meta">${metaHTML(q)}</div><p class="qtext">${esc(q.pregunta)}</p><div class="opts">${optsHTML(q, {checked: true})}</div>${q.nota.trim() ? `<p class="small" style="margin-top:10px">${esc(q.nota)}</p>` : ''}</article></div>`).join('')}
+    <div class="actions"><button class="btn primary" data-act="dlgClose">Cerrar</button></div>`);
+}
+function salirDialog() {
+  const sim = S.kind === 'simulacro', reloj = !!curPart().endAt;
+  dialog(`<h3 id="dlgTitle">¿Salir de ${esc(S.title.toLowerCase())}?</h3>
+    <p>${reloj ? 'Puedes salir y volver desde Inicio, pero el reloj sigue corriendo: si se acaba, se entrega solo.' : 'Puedes salir y seguir luego desde Inicio, o terminar ahora y ver la corrección.'}</p>
+    <div class="actions"><button class="btn" data-act="dlgClose" autofocus>Seguir aquí</button><button class="btn" data-act="salirLuego">Salir y seguir luego</button>
+    ${sim ? holdHTML('entregarYa', 'Mantén para entregar ya', 'Entregando…', 2000) : '<button class="btn primary" data-act="terminarYa">Terminar y corregir</button>'}</div>`);
+}
+ACT.salirLuego = () => { $('#dlg').close(); go('inicio'); };
+ACT.terminarYa = () => { $('#dlg').close(); finish(); };
+$('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });   // clic fuera cierra
+
+/* ==========================================================================
+   14. EXPORTAR / IMPORTAR
+   ========================================================================== */
+function exportar() {
+  const data = {app: 'fichas-oposicion', version: 1, exportado: new Date().toISOString(), progreso: P, preferencias: UI};
+  if (UI.expBancos !== false) data.bancos = store.get(K.bancos, {});
+  const blob = new Blob([JSON.stringify(data, null, 1)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `progreso-oposicion-${dayKey()}.json`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast('↓', 'Progreso exportado', a.download);
+}
+let PENDING_IMPORT = null;
+$('#importInput').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); } catch (err) { return dialog(`<h3 id="dlgTitle">No se puede importar</h3><p>${esc(f.name)} no es un JSON válido.</p><div class="actions"><button class="btn primary" data-act="dlgClose">Cerrar</button></div>`); }
+  if (!data || data.app !== 'fichas-oposicion' || !data.progreso || typeof data.progreso.q !== 'object')
+    return dialog(`<h3 id="dlgTitle">No se puede importar</h3><p>${esc(f.name)} no parece una exportación de esta app.</p><div class="actions"><button class="btn primary" data-act="dlgClose">Cerrar</button></div>`);
+  PENDING_IMPORT = data;
+  const pr = data.progreso, nb = data.bancos ? Object.keys(data.bancos).length : 0;
+  dialog(`<h3 id="dlgTitle">Importar progreso</h3>
+    <p>${esc(f.name)} · exportado el ${esc(new Date(data.exportado).toLocaleString('es-ES'))}</p>
+    <div class="card kv"><span>Preguntas con historial</span><span>${Object.keys(pr.q).length}</span><span>Días estudiados</span><span>${Object.keys(pr.days || {}).length}</span><span>Simulacros</span><span>${(pr.sims || []).length}</span><span>Bancos incluidos</span><span>${nb}</span></div>
+    <p class="small">«Combinar» conserva lo que tienes y añade lo del archivo (en cada pregunta se queda el historial más reciente). «Reemplazar» deja el progreso exactamente como en el archivo. Los bancos del archivo se añaden en los dos casos.</p>
+    <div class="actions"><button class="btn" data-act="dlgClose">Cancelar</button><button class="btn" data-act="importReplace">Reemplazar</button><button class="btn primary" data-act="importMerge" autofocus>Combinar</button></div>`);
+});
+function applyImport(mode) {
+  const d = PENDING_IMPORT; if (!d) return;
+  const imp = {q: d.progreso.q || {}, days: d.progreso.days || {}, sims: d.progreso.sims || []};
+  if (mode === 'replace') P = {v: 1, ...imp};
+  else {
+    for (const [id, e] of Object.entries(imp.q)) if (!P.q[id] || (e.last || 0) > (P.q[id].last || 0)) P.q[id] = e;
+    for (const [k, v] of Object.entries(imp.days)) P.days[k] = Math.max(P.days[k] || 0, v);
+    const seen = new Set(P.sims.map(s => s.fecha + '|' + s.total));
+    imp.sims.forEach(s => { if (!seen.has(s.fecha + '|' + s.total)) P.sims.push(s); });
+    P.sims.sort((a, b) => a.fecha - b.fecha);
+  }
+  if (d.bancos && typeof d.bancos === 'object') { const raw = store.get(K.bancos, {}); Object.assign(raw, d.bancos); store.set(K.bancos, raw); buildLibrary(); }
+  saveProgress(); PENDING_IMPORT = null; $('#dlg').close();
+  toast('↑', mode === 'replace' ? 'Progreso reemplazado' : 'Progreso combinado', `${Object.keys(P.q).length} preguntas con historial`);
+  render();
+}
+ACT.importMerge = () => applyImport('merge');
+ACT.importReplace = () => applyImport('replace');
+
+/* ==========================================================================
+   15. AVISOS APILADOS (al estilo Sonner): entran y salen por abajo,
+       se pausan con la pestaña oculta o con el ratón encima
+   ========================================================================== */
+const toaster = $('#toaster');
+let toastPaused = false;
+function toast(icon, title, sub) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.dataset.mounted = 'false'; t.setAttribute('role', 'status');
+  t.innerHTML = `<span class="em" aria-hidden="true">${esc(icon)}</span><span><b></b><small></small></span>`;
+  t.querySelector('b').textContent = title; t.querySelector('small').textContent = sub || '';
+  t._left = 4000; t._start = Date.now();
+  toaster.prepend(t); restack();
+  void t.offsetWidth; t.dataset.mounted = 'true';                  // transición: interrumpible
+  if (!toastPaused) t._timer = setTimeout(() => leave(t), t._left);
+}
+function leave(t) { if (t.dataset.leaving) return; t.dataset.leaving = 'true'; setTimeout(() => { t.remove(); restack(); }, reduceMotion() ? 0 : 200); }
+function restack() { [...toaster.children].forEach((t, i) => { t.style.setProperty('--i', i); t.style.zIndex = 10 - i; if (i > 2) leave(t); }); }
+function pauseToasts(on) {
+  toastPaused = on;
+  for (const t of toaster.children) {
+    if (on) { clearTimeout(t._timer); t._left -= Date.now() - t._start; }
+    else { t._start = Date.now(); t._timer = setTimeout(() => leave(t), Math.max(600, t._left)); }
+  }
+}
+toaster.addEventListener('mouseenter', () => pauseToasts(true));
+toaster.addEventListener('mouseleave', () => pauseToasts(false));
+document.addEventListener('visibilitychange', () => pauseToasts(document.hidden));
+const announce = txt => { const l = $('#live'); l.textContent = ''; setTimeout(() => l.textContent = txt, 30); };
+
+/* ==========================================================================
+   16. ARRANQUE
+   ========================================================================== */
+applyTheme();
+buildLibrary();
+/* La opción fallada se guarda desde la versión con informe de fallos; la de la última sesión aún se puede recuperar */
+if (S && S.ans && S.recorded) {
+  let n = 0;
+  for (const [id, L] of Object.entries(S.ans)) {
+    const e = P.q[id], q = LIB.byId.get(id);
+    if (e && e.ko && !e.marcada && q && S.recorded[id] && L !== q.oficial) { e.marcada = L; n++; }
+  }
+  if (n) saveProgress();
+}
+if (S && !S.done && !S.between) {
+  const part = S.parts[S.p];
+  if (part && part.endAt && part.endAt <= Date.now()) { route = 'sesion'; deliverPart(true); }
+}
+go(S && !S.done ? 'sesion' : 'inicio', {instant: true});
+addEventListener('resize', () => clipTabs(true));
+if (WEB) {
+  arrancarWeb();
+  // Instalable y sin conexión (sw.js). Pedir almacenamiento persistente evita que el navegador
+  // borre el progreso por falta de espacio o por no abrir la app en unos días
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.storage?.persist?.().catch(() => {});
+}
+</script>
+</body>
+</html>
