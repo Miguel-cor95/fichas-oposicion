@@ -367,8 +367,9 @@ dialog .actions{justify-content:flex-end}
 .candado form{width:min(380px,100%);display:grid;gap:12px}
 .candado img{border-radius:14px}
 .candado h1,.candado p{margin:0}
-.candado input{font:inherit;font-size:17px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
-.candado input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.campo{flex:1;min-width:0}
+.candado input,.campo{font:inherit;font-size:17px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:100%}
+.candado input:focus-visible,.campo:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .candado .err{color:var(--ko);min-height:1.5em}
 .toaster{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 18px);width:min(380px,calc(100% - 32px));transform:translateX(-50%);z-index:70;height:0}
 .toast{position:absolute;left:0;right:0;bottom:0;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;font-size:14px;box-shadow:0 10px 30px -8px rgba(0,0,0,.35);
@@ -1003,7 +1004,19 @@ function loadUI() {
 }
 let UI = loadUI();
 const saveUI = () => store.set(K.ui, UI);
-function saveProgress() { if (!store.set(K.progreso, P)) render(); }
+function saveProgress() { if (!store.set(K.progreso, P)) render(); nubeProgramar(); }
+/* Une otro progreso (importado o de la nube) con el tuyo: en cada pregunta se queda el historial
+   más reciente; de cada día, la cifra mayor; los simulacros se suman sin repetir. Devuelve cuántos cambios hubo. */
+const reciente = e => Math.max(e.last || 0, e.mod || 0);
+function combinarProgreso(imp) {
+  let cambios = 0;
+  for (const [id, e] of Object.entries(imp.q || {})) if (!P.q[id] || reciente(e) > reciente(P.q[id])) { P.q[id] = e; cambios++; }
+  for (const [k, v] of Object.entries(imp.days || {})) if (v > (P.days[k] || 0)) { P.days[k] = v; cambios++; }
+  const seen = new Set(P.sims.map(s => s.fecha + '|' + s.total));
+  (imp.sims || []).forEach(s => { if (!seen.has(s.fecha + '|' + s.total)) { P.sims.push(s); cambios++; } });
+  P.sims.sort((a, b) => a.fecha - b.fecha);
+  return cambios;
+}
 
 /* Tema: automático (sigue al sistema), claro u oscuro. Se cambia con el botón de arriba o en Progreso › Datos. */
 const TEMAS_UI = {
@@ -1046,6 +1059,7 @@ function setDoubt(id, on) {
   const e = qp(id);
   if (on && !e.dud) { e.dud = true; e.revAntes = !!e.rev; e.rachaAntes = e.racha; e.rev = true; e.racha = 0; }
   else if (!on && e.dud) { e.dud = false; if ('revAntes' in e) { e.rev = e.revAntes; e.racha = e.rachaAntes || 0; delete e.revAntes; delete e.rachaAntes; } }
+  e.mod = Date.now();   // para que al combinar con otro dispositivo gane este cambio
   saveProgress();
 }
 function streak() {
@@ -1610,11 +1624,12 @@ VIEWS.progreso = () => {
     ${red ? `<p class="muted">Además, ${plural(red, 'simulacro reducido', 'simulacros reducidos')} (no oficiales) que no cuentan en esta gráfica.</p>` : ''}
     <h2>Datos</h2>
     <div class="card">
-      <p><b>Exporta tu progreso</b> a un archivo para no perderlo si limpias el navegador.${WEB ? ' Cada dispositivo guarda el suyo: para pasarlo del ordenador al móvil (o al revés), exporta en uno e importa en el otro con «Combinar».' : ''}</p>
+      <p><b>Exporta tu progreso</b> a un archivo para no perderlo si limpias el navegador.${WEB ? ' Cada dispositivo guarda el suyo: para pasarlo del ordenador al móvil (o al revés), activa la sincronización de abajo, o exporta en uno e importa en el otro con «Combinar».' : ''}</p>
       ${switchHTML('expBancos', UI.expBancos !== false, 'Incluir los bancos', 'Así puedes restaurarlo todo en otro navegador')}
       <div class="actions"><button class="btn primary" data-act="exportar">Exportar JSON</button><button class="btn" data-act="importar">Importar…</button></div>
       ${WEB ? '<div class="actions"><button class="btn" data-act="bloquear">Olvidar la contraseña en este dispositivo</button><span class="muted">La pedirá al volver a abrir. Tu progreso se queda.</span></div>' : ''}
     </div>
+    ${WEB ? nubeHTML() : ''}
     <div class="card" style="margin-top:10px"><b>Tema</b><div class="field">${Object.entries(TEMAS_UI).map(([k, v]) => `<button class="chip" data-act="temaVisual" data-v="${k}" aria-pressed="${UI.tema === k}">${v.txt}</button>`).join('')}<span class="small">«Automático» sigue al sistema</span></div></div>
     <div class="card" style="margin-top:10px"><b>Objetivo diario</b><div class="field">${[10, 20, 30, 50, 80].map(n => `<button class="chip" data-act="goal" data-v="${n}" aria-pressed="${UI.goal === n}">${n}</button>`).join('')}<span class="small">preguntas al día</span></div></div>
     <div class="card" style="margin-top:10px"><div class="row"><b>Pruebas de la puntuación</b><span class="spacer"></span><button class="btn" data-act="tests">Ejecutar</button></div>
@@ -1843,7 +1858,7 @@ const HOLD = {
     // Un banco de la web que quitas no vuelve a descargarse solo (se recupera desde Bancos)
     if (raw[p]?.webCsv || raw[p]?.webMd) { UI.webQuitados = [...new Set([...(UI.webQuitados || []), p])]; saveUI(); }
     delete raw[p]; store.set(K.bancos, raw); buildLibrary(); toast('−', 'Banco quitado', 'Tu progreso con sus preguntas se conserva'); render(); },
-  borrarProgreso: () => { P = {v: 1, q: {}, days: {}, sims: []}; saveProgress(); toast('−', 'Progreso borrado', 'Los bancos siguen cargados'); render(); },
+  borrarProgreso: () => { P = {v: 1, q: {}, days: {}, sims: []}; saveProgress(); nubeSincronizar({reemplazar: true}); toast('−', 'Progreso borrado', 'Los bancos siguen cargados'); render(); },
   entregarYa: () => { $('#dlg').close(); go('sesion'); deliverPart(false); }
 };
 const CHG = {
@@ -1977,7 +1992,8 @@ document.addEventListener('drop', e => {
 const WEB = /^https?:$/.test(location.protocol);
 const CLAVE = 'fichas.clave.v1';
 let SYNCING = WEB && !Object.keys(store.get(K.bancos, {})).length;
-const b64 = {de: s => Uint8Array.from(atob(s), c => c.charCodeAt(0)), a: u => btoa(String.fromCharCode(...u))};
+const b64 = {de: s => Uint8Array.from(atob(s), c => c.charCodeAt(0)),
+  a: u => { let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); }};
 const leerIndice = () => fetch('datos/indice.json', {cache: 'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null);
 const importarAES = raw => crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
 /* Cada archivo es iv (12 bytes) + cifrado; si la clave no es la buena, falla */
@@ -2025,6 +2041,7 @@ async function arrancarWeb() {
   let idx = await leerIndice(), key = await claveGuardada(idx);
   if (!key) ({idx, key} = await pedirClave(idx));
   await syncWebBanks(idx, key);
+  nubeSincronizar();
 }
 async function syncWebBanks(idx, key) {
   let cambios = false;
@@ -2047,6 +2064,100 @@ async function syncWebBanks(idx, key) {
 }
 ACT.recuperarWeb = async () => { UI.webQuitados = []; saveUI(); const idx = await leerIndice(), key = await claveGuardada(idx); if (idx && key) syncWebBanks(idx, key); };
 ACT.bloquear = () => { store.del(CLAVE); location.reload(); };
+
+/* Sincronización del progreso entre dispositivos (solo en la versión publicada).
+   Va a un Gist secreto de tu cuenta de GitHub, cifrado con la misma clave que los bancos: GitHub solo
+   guarda un bloque ilegible. Al abrir la app se trae y se combina; al responder se sube unos segundos
+   después, trayendo y combinando antes para no pisar lo que hayas hecho en el otro dispositivo. */
+const NUBE = 'fichas.nube.v1', NUBE_ARCHIVO = 'fichas-progreso.enc', NUBE_VACIO = 'nuevo';
+// «var»: saveProgress puede llamar a nubeProgramar durante el arranque, antes de llegar aquí
+var nubeTimer = null, nubeEnCurso = null, nubeUltima = 0, nubeEstado = {txt: ''};
+function nubeProgramar() {
+  if (!store.get('fichas.nube.v1', null)) return;
+  clearTimeout(nubeTimer); nubeTimer = setTimeout(() => nubeSincronizar(), 6000);
+}
+async function gh(cfg, ruta, opts = {}) {
+  const r = await fetch('https://api.github.com' + ruta, {...opts, cache: 'no-store',
+    headers: {Accept: 'application/vnd.github+json', Authorization: 'Bearer ' + cfg.token, ...(opts.body ? {'Content-Type': 'application/json'} : {})}});
+  if (r.status === 401) throw new Error('GitHub no acepta el token: puede haber caducado o no tener el permiso «gist».');
+  if (r.status === 404) throw new Error('No encuentro el Gist del progreso (¿lo has borrado?). Desactiva y vuelve a activar.');
+  if (!r.ok) throw new Error(`GitHub respondió con un error (${r.status}). Se reintentará.`);
+  return r.json();
+}
+async function nubeLeer(cfg, key) {
+  const f = (await gh(cfg, '/gists/' + cfg.gist)).files?.[NUBE_ARCHIVO];
+  const txt = !f ? NUBE_VACIO : f.truncated ? await fetch(f.raw_url, {cache: 'no-store'}).then(r => r.text()) : f.content;
+  if (txt.trim() === NUBE_VACIO) return null;
+  try { return JSON.parse(new TextDecoder().decode(await descifrar(key, b64.de(txt.trim())))); }
+  catch (e) { throw Object.assign(new Error('El progreso guardado en GitHub está cifrado con otra contraseña.'), {otraClave: true}); }
+}
+async function nubeEscribir(cfg, key) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name: 'AES-GCM', iv}, key, new TextEncoder().encode(JSON.stringify({v: 1, at: Date.now(), progreso: P}))));
+  const buf = new Uint8Array(12 + ct.length); buf.set(iv); buf.set(ct, 12);
+  await gh(cfg, '/gists/' + cfg.gist, {method: 'PATCH', body: JSON.stringify({files: {[NUBE_ARCHIVO]: {content: b64.a(buf)}}})});
+}
+/* Trae, combina y sube. Con «reemplazar» sube lo de este dispositivo tal cual (tras borrar o importar con «Reemplazar») */
+function nubeSincronizar({reemplazar = false} = {}) {
+  const cfg = store.get(NUBE, null), c = store.get(CLAVE, null);
+  if (!WEB || !cfg || !c) return Promise.resolve();
+  clearTimeout(nubeTimer); nubeTimer = null;
+  if (nubeEnCurso) return nubeEnCurso.then(() => nubeSincronizar({reemplazar}));
+  nubeEnCurso = (async () => {
+    try {
+      const key = await crypto.subtle.importKey('raw', b64.de(c.aes), 'AES-GCM', false, ['encrypt', 'decrypt']);
+      if (!reemplazar) {
+        const remoto = await nubeLeer(cfg, key);
+        if (remoto?.progreso && combinarProgreso(remoto.progreso)) { store.set(K.progreso, P); if (route !== 'sesion' && !$('#nubeToken')) render(); }
+      }
+      await nubeEscribir(cfg, key);
+      nubeUltima = Date.now();
+      nubeEstado = {txt: 'Sincronizado a las ' + new Date().toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'}) + '.'};
+    } catch (e) {
+      nubeEstado = navigator.onLine === false ? {txt: 'Sin conexión: se sincroniza al volver la red.'} : {txt: e.message, error: true, otraClave: !!e.otraClave};
+    } finally {
+      nubeEnCurso = null;
+      if (route === 'progreso' && !$('#nubeToken')) render();
+    }
+  })();
+  return nubeEnCurso;
+}
+function nubeHTML() {
+  const titulo = '<b>Sincronizar entre dispositivos</b>', estado = `<p class="small" id="nubeEstado" role="status"${nubeEstado.error ? ' style="color:var(--ko)"' : ''}>${esc(nubeEstado.txt)}</p>`;
+  if (!store.get(NUBE, null)) return `<div class="card" style="margin-top:10px">${titulo}
+    <p class="small">Tu progreso (respuestas, fallos, repaso y simulacros) se guarda cifrado con tu contraseña en un Gist secreto de tu cuenta de GitHub, y se combina solo entre el móvil y el ordenador.</p>
+    <p class="small">1. <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Fichas%20sincronizaci%C3%B3n" target="_blank" rel="noopener">Crea un token en GitHub</a> con solo el permiso «gist» y caducidad después del examen. 2. Pégalo aquí, en cada dispositivo.</p>
+    <div class="field"><input type="password" id="nubeToken" class="campo" placeholder="ghp_…" autocomplete="off" spellcheck="false" aria-label="Token de GitHub"><button class="btn primary" data-act="nubeActivar">Activar</button></div>${estado}</div>`;
+  return `<div class="card" style="margin-top:10px"><div class="row">${titulo}<span class="spacer"></span><button class="btn" data-act="nubeAhora">Sincronizar ahora</button></div>
+    ${nubeEstado.txt ? estado : '<p class="small" id="nubeEstado" role="status">Activada: se sincroniza al abrir la app y poco después de responder.</p>'}
+    ${nubeEstado.otraClave ? `<div class="actions">${holdHTML('nubeReemplazar', 'Mantén para subir el de este dispositivo', 'Subiendo…', 2000, 'danger')}<span class="muted">Sustituye al de GitHub.</span></div>` : ''}
+    <div class="actions"><button class="btn ghost" data-act="nubeDesactivar">Desactivar en este dispositivo</button></div></div>`;
+}
+ACT.nubeActivar = async el => {
+  const input = $('#nubeToken'), token = input.value.trim(), est = $('#nubeEstado');
+  if (!token) return input.focus();
+  el.disabled = true; est.style.color = ''; est.textContent = 'Conectando con GitHub…';
+  try {
+    const cfg = {token};
+    // Si ya lo activaste en otro dispositivo, se usa el mismo Gist
+    const g = (await gh(cfg, '/gists?per_page=100')).find(g => g.files && g.files[NUBE_ARCHIVO]);
+    cfg.gist = g ? g.id : (await gh(cfg, '/gists', {method: 'POST', body: JSON.stringify({description: 'Fichas · progreso cifrado', public: false, files: {[NUBE_ARCHIVO]: {content: NUBE_VACIO}}})})).id;
+    store.set(NUBE, cfg);
+    nubeEstado = {txt: ''};
+    await nubeSincronizar();
+    toast('✓', 'Sincronización activada', g ? 'Combinado con tu otro dispositivo' : 'Actívala también en tu otro dispositivo');
+  } catch (e) { est.style.color = 'var(--ko)'; est.textContent = e.message; el.disabled = false; return; }
+  render();
+};
+ACT.nubeAhora = () => nubeSincronizar();
+HOLD.nubeReemplazar = () => nubeSincronizar({reemplazar: true});
+ACT.nubeDesactivar = () => { store.del(NUBE); nubeEstado = {txt: ''}; toast('−', 'Sincronización desactivada', 'El Gist sigue en tu GitHub'); render(); };
+// Al volver a la app trae lo del otro dispositivo; al dejarla, sube lo pendiente
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (nubeTimer) nubeSincronizar(); }
+  else if (Date.now() - nubeUltima > 60000) nubeSincronizar();
+});
+addEventListener('online', () => nubeSincronizar());
 
 /* ==========================================================================
    13. DIÁLOGOS
@@ -2123,15 +2234,10 @@ function applyImport(mode) {
   const d = PENDING_IMPORT; if (!d) return;
   const imp = {q: d.progreso.q || {}, days: d.progreso.days || {}, sims: d.progreso.sims || []};
   if (mode === 'replace') P = {v: 1, ...imp};
-  else {
-    for (const [id, e] of Object.entries(imp.q)) if (!P.q[id] || (e.last || 0) > (P.q[id].last || 0)) P.q[id] = e;
-    for (const [k, v] of Object.entries(imp.days)) P.days[k] = Math.max(P.days[k] || 0, v);
-    const seen = new Set(P.sims.map(s => s.fecha + '|' + s.total));
-    imp.sims.forEach(s => { if (!seen.has(s.fecha + '|' + s.total)) P.sims.push(s); });
-    P.sims.sort((a, b) => a.fecha - b.fecha);
-  }
+  else combinarProgreso(imp);
   if (d.bancos && typeof d.bancos === 'object') { const raw = store.get(K.bancos, {}); Object.assign(raw, d.bancos); store.set(K.bancos, raw); buildLibrary(); }
   saveProgress(); PENDING_IMPORT = null; $('#dlg').close();
+  if (mode === 'replace') nubeSincronizar({reemplazar: true});
   toast('↑', mode === 'replace' ? 'Progreso reemplazado' : 'Progreso combinado', `${Object.keys(P.q).length} preguntas con historial`);
   render();
 }
